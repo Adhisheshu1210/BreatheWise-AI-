@@ -1,0 +1,1326 @@
+# MASTER BUILD PROMPT — BreatheWise AI
+
+## Project Name
+BreatheWise AI – Intelligent Urban Air Quality, Smog Safety & Sustainable Living Assistant
+
+## Challenge
+Challenge 6: Urban Air Quality Assistant
+
+## Objective
+Build a completely new, fully functional, production-quality, AI-powered web application that helps families, students, working professionals, senior citizens, and urban communities navigate severe winter smog and air pollution.
+
+The app must provide actionable, location-aware, personalized advice for reducing exposure to pollution, improving indoor air quality, planning safer daily routines, choosing sustainable transportation, and understanding the environmental impact of individual choices.
+
+Build the actual application, not a prototype, static mockup, landing page, or collection of nonfunctional UI elements.
+
+The product should demonstrate exceptional design quality, technical implementation, usability, accessibility, AI integration, security, reliability, and alignment with the challenge.
+
+Target quality: competition-level project capable of scoring 99/100 in a strict evaluation. This is a quality target, not a guaranteed evaluation score.
+
+---
+
+# 1. PRODUCT EXPERIENCE
+
+Create BreatheWise AI, a modern AI-powered environmental health and lifestyle assistant.
+
+The core user question should be:
+
+"What should I do today to protect myself and my family from the air pollution around me?"
+
+The application must convert environmental information into clear, practical, personalized actions.
+
+Users should not need to understand complicated environmental science or AQI terminology to use the application.
+
+The application must explain:
+- What is the current air quality?
+- What pollutants are affecting the area?
+- Is it safe to go outdoors?
+- What activities should I avoid or modify?
+- How can I protect my family?
+- How can I improve the air inside my home?
+- When is the best time to go outside?
+- How can I reduce my pollution footprint?
+- What actions will make the biggest difference today?
+
+Avoid fear-based messaging. Use calm, clear, trustworthy, evidence-aware communication.
+
+---
+
+# 2. DESIGN AND UI QUALITY
+
+Create an exceptional, premium, polished, responsive interface.
+
+Visual direction:
+- Modern environmental intelligence dashboard.
+- Premium SaaS application.
+- Clean editorial design.
+- Sophisticated typography.
+- Thoughtful spacing.
+- Smooth transitions.
+- Rounded cards with subtle borders.
+- Beautiful charts and data visualizations.
+- Strong visual hierarchy.
+- Accessible contrast.
+- Responsive mobile-first layouts.
+
+Suggested design system:
+- Deep midnight blue for environmental intelligence.
+- Soft mint and teal for healthy air.
+- Amber for moderate pollution warnings.
+- Coral/orange for elevated risk.
+- Red only for genuinely severe conditions.
+- Off-white and neutral backgrounds.
+- Subtle gradients used sparingly.
+- Beautiful line icons.
+- AQI visualizations.
+- Consistent design tokens.
+
+The design must look like a polished commercial product, not a generic AI-generated dashboard.
+
+Use an adaptive visual theme that changes appropriately based on the current AQI category without compromising readability.
+
+Avoid:
+- Overcrowded dashboards.
+- Excessive gradients.
+- Random colors.
+- Emoji-only interfaces.
+- Giant empty cards.
+- Placeholder statistics.
+- Fake charts.
+- Buttons that do nothing.
+- Excessive animations.
+- Unnecessary repetitive components.
+
+Create a fully responsive interface for:
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile.
+
+Provide a carefully designed navigation system with:
+- Dashboard.
+- Air Quality Map.
+- Daily Planner.
+- Home Air Care.
+- Sustainable Living.
+- Exposure Tracker.
+- AI Assistant.
+
+Use a mobile-friendly navigation pattern.
+
+---
+
+# 3. DASHBOARD — REAL ENVIRONMENTAL INTELLIGENCE
+
+Create a powerful personalized dashboard.
+
+The dashboard must include:
+
+## A. Current Location
+
+Allow the user to:
+- Search for a city or location.
+- Enter a location manually.
+- Use browser geolocation with explicit permission.
+- Change locations.
+- Save favorite locations.
+
+Do not force location permissions.
+
+Handle:
+- Permission denied.
+- Location unavailable.
+- Network failure.
+- Invalid location.
+- Empty search.
+- Ambiguous cities.
+
+Show the selected city and location context.
+
+## B. Current AQI
+
+Create a visually impressive AQI display showing:
+- Current AQI value.
+- AQI category.
+- Health interpretation.
+- Pollutant responsible for the highest risk, if known.
+- Last updated time.
+- Data source.
+- Confidence or freshness indicator.
+
+Use a visual gauge or carefully designed AQI indicator.
+
+AQI must be calculated from actual data or a clearly labeled demonstration dataset.
+
+NEVER present mock pollution data as live data.
+
+If live data is unavailable, clearly label the experience:
+"Sample environmental data – live data unavailable."
+
+## C. Pollutant Breakdown
+
+Display available pollutants:
+- PM2.5.
+- PM10.
+- NO2.
+- O3.
+- SO2.
+- CO.
+
+Include:
+- Actual concentration values and units.
+- Reference threshold or standard, if applicable.
+- Pollutant explanation.
+- Relative contribution or risk, only when scientifically supported.
+
+Make pollutants understandable to normal users.
+
+Example:
+PM2.5 – Fine particles that can penetrate deep into the lungs. During high concentrations, reduce outdoor exposure and avoid strenuous activity.
+
+Do not invent pollutant values or assume all pollutant data is available.
+
+## D. Air Quality Trend
+
+Create interactive historical charts for:
+- AQI trends.
+- PM2.5 trends.
+- PM10 trends.
+- 24-hour trends, where actual data exists.
+
+Allow users to switch:
+- 24 hours.
+- 7 days.
+- 30 days.
+
+If historical data is unavailable, explain it and show a labeled sample visualization rather than fabricated real-world history.
+
+## E. Environmental Alerts
+
+Create alerts for:
+- Severe AQI.
+- Sudden pollution increases.
+- Unhealthy outdoor conditions.
+- Poor ventilation conditions.
+- High-risk outdoor activity periods.
+
+Alerts must be based on available real data or clearly labeled simulation.
+
+---
+
+# 4. SMART DAILY AIR QUALITY PLANNER
+
+Build a highly useful personalized daily planner.
+
+Users should provide:
+- Location.
+- Wake-up time.
+- Bedtime.
+- Work or school schedule.
+- Outdoor commute.
+- Preferred exercise.
+- Daily outdoor activities.
+- Household members.
+- Health-related sensitivity categories, optionally.
+- Transportation preferences.
+- Daily goals.
+
+The system should generate a personalized pollution-aware routine.
+
+Example:
+
+7:00 AM – Check air quality before leaving home.
+
+7:30 AM – Use a less polluted route when possible.
+
+8:00 AM – Commute using lower-exposure transportation options.
+
+12:30 PM – Prefer indoor lunch during severe pollution.
+
+4:00 PM – Outdoor exercise postponed because pollution levels are elevated.
+
+6:00 PM – Choose a short indoor exercise alternative.
+
+9:00 PM – Ventilate only when outdoor conditions are suitable.
+
+The planner must:
+- Adapt to the current AQI.
+- Consider user preferences.
+- Respect their schedule.
+- Recommend feasible activities.
+- Offer alternatives.
+- Explain why each recommendation matters.
+
+Allow users to:
+- Generate a new plan.
+- Edit activities.
+- Mark tasks completed.
+- Regenerate a single recommendation.
+- Save their routine.
+- Reset the plan.
+
+Do not generate identical plans for every user.
+
+---
+
+# 5. FAMILY PROTECTION MODE
+
+Create a feature named "Protect My Family."
+
+Users can create optional household profiles such as:
+- Adults.
+- Children.
+- Older adults.
+- People with asthma or respiratory sensitivity.
+- People who spend substantial time outdoors.
+- Pets.
+
+Sensitive profile information must be optional, handled respectfully, and not unnecessarily stored.
+
+Generate family-specific pollution precautions.
+
+Examples:
+- Children: modify outdoor play when pollution is elevated.
+- Older adults: plan essential trips during lower-exposure periods.
+- Outdoor workers: discuss protective measures and breaks in cleaner indoor environments.
+- Sensitive individuals: follow personal medical advice and reduce exposure when pollution is elevated.
+
+Provide:
+- Family risk awareness.
+- Personalized precaution checklist.
+- Morning protection checklist.
+- Evening checklist.
+- School commute considerations.
+- Outdoor activity recommendations.
+- Indoor alternatives.
+
+Do not diagnose illnesses.
+
+Do not claim that AI can predict or prevent medical emergencies.
+
+Do not present general recommendations as medical treatment.
+
+---
+
+# 6. AI INDOOR AIR CARE ASSISTANT
+
+Build a comprehensive indoor air quality improvement module.
+
+Users can describe their home:
+- Apartment or house.
+- Number of rooms.
+- Approximate size.
+- Ventilation type.
+- Air purifier availability.
+- Filter type, if known.
+- Cooking methods.
+- Pets.
+- Indoor smoking exposure, if applicable.
+- Dust problems.
+- Humidity conditions.
+- Budget.
+
+The Gemini-powered AI assistant should provide actionable recommendations.
+
+Examples:
+- When to keep windows closed during outdoor pollution spikes.
+- When ventilation may be beneficial based on outdoor conditions.
+- How to manage indoor dust.
+- How to reduce indoor particle sources.
+- Cooking ventilation strategies.
+- How to choose an appropriately sized air purifier.
+- Filter maintenance.
+- How to create a cleaner bedroom.
+- How to reduce unnecessary indoor pollution.
+
+Include:
+
+### Room-by-Room Cleaner Air Plan
+- Bedroom.
+- Living room.
+- Kitchen.
+- Study room.
+- Children's room.
+
+### Home Improvement Checklist
+- Daily.
+- Weekly.
+- Monthly.
+
+### Budget-Based Recommendations
+
+Generate options for:
+- ₹0 budget.
+- Under ₹500.
+- Under ₹2,000.
+- Under ₹5,000.
+- Higher-budget improvements.
+
+Never guarantee that a particular household action will eliminate pollution.
+
+Avoid recommending unsafe ventilation strategies during severe outdoor pollution.
+
+Clearly distinguish between evidence-supported recommendations and AI-generated suggestions.
+
+---
+
+# 7. OUTDOOR ACTIVITY INTELLIGENCE
+
+Create an outdoor activity planner.
+
+Activities:
+- Walking.
+- Running.
+- Cycling.
+- Yoga.
+- Children's outdoor play.
+- School commute.
+- Grocery shopping.
+- Dog walking.
+- Sports.
+
+The system should classify recommendations according to available AQI and relevant pollutant data.
+
+Example:
+- Good conditions: normal outdoor activities.
+- Elevated pollution: reduce prolonged strenuous activities.
+- Poor conditions: move exercise indoors and limit unnecessary exposure.
+- Severe conditions: prioritize staying indoors and following official guidance.
+
+The exact recommendations must be based on recognized AQI categories and the configured data source.
+
+Users must be able to select an activity and receive:
+- Risk level.
+- Recommended timing.
+- Duration guidance.
+- Indoor alternative.
+- Practical precautions.
+- Explanation of why the recommendation was generated.
+
+Provide an "Indoor Alternative Generator."
+
+Examples:
+- Outdoor running → indoor cardio.
+- Outdoor yoga → home yoga session.
+- Children's park visit → indoor creative play.
+- Cycling → stationary cycling or indoor exercise.
+- Outdoor study → indoor study in a cleaner environment.
+
+Do not overstate safety. AQI alone may not fully describe local conditions.
+
+---
+
+# 8. SMART ROUTE AND COMMUTE ASSISTANT
+
+Create a commute planning feature.
+
+Users can enter:
+- Starting point.
+- Destination.
+- Transportation mode.
+- Time of travel.
+- Walking preferences.
+
+Provide:
+- Route comparison.
+- Lower-exposure route suggestions when data supports them.
+- Traffic-aware considerations when data is available.
+- Main roads versus quieter streets.
+- Outdoor exposure considerations.
+- Transportation alternatives.
+
+If no actual route or pollution map API is integrated, do not pretend to calculate real routes.
+
+Use a transparent route recommendation mode:
+- Estimated exposure considerations.
+- Traffic considerations.
+- Distance.
+- Time.
+- Transportation emissions.
+
+Clearly explain when a route recommendation is based on assumptions rather than live route data.
+
+---
+
+# 9. SUSTAINABLE LIVING ASSISTANT
+
+Create a sustainable lifestyle module that turns environmental choices into understandable actions.
+
+Categories:
+- Transportation.
+- Energy consumption.
+- Cooking.
+- Waste.
+- Shopping.
+- Water.
+- Outdoor habits.
+
+Provide personalized suggestions such as:
+- Walking for suitable short journeys.
+- Public transportation.
+- Carpooling.
+- Reducing unnecessary vehicle use.
+- Avoiding vehicle idling.
+- Energy-efficient appliance use.
+- Cleaner cooking practices.
+- Reusable products.
+- Waste reduction.
+
+The user must be able to:
+- Select a sustainability goal.
+- Choose a difficulty level.
+- Set a daily or weekly target.
+- Track completed actions.
+- See progress.
+
+Build a sustainable action score based on completed actions and transparent scoring rules.
+
+Do not falsely claim exact pollution reductions.
+
+Environmental impact calculations must:
+- Use transparent assumptions.
+- Show calculation methodology.
+- Use units.
+- Provide a range where uncertainty exists.
+- Clearly label estimates.
+- Avoid claiming causal reductions without evidence.
+
+---
+
+# 10. PERSONAL POLLUTION EXPOSURE TRACKER
+
+Build a personal exposure-awareness feature.
+
+Users can log:
+- Outdoor duration.
+- Location.
+- Activity.
+- Approximate AQI.
+- Transportation mode.
+- Mask use, optionally.
+- Notes.
+
+Show:
+- Daily exposure awareness summary.
+- Weekly patterns.
+- Outdoor activity trends.
+- Potential high-exposure periods.
+- Recommendations for reducing future exposure.
+
+IMPORTANT:
+
+Do not label estimates as medically precise personal exposure measurements.
+
+Do not calculate an individual's inhaled dose without the required scientific data.
+
+Explain that ambient AQI and logged activity duration are only approximate exposure indicators.
+
+Include:
+- Daily logs.
+- Weekly report.
+- Activity history.
+- Charts.
+- Privacy controls.
+- Delete log functionality.
+
+---
+
+# 11. AI POLLUTION EXPLAINER
+
+Create an AI feature named "Explain My Air."
+
+Users can ask:
+- Why is the air quality bad today?
+- What is PM2.5?
+- Why does winter smog occur?
+- Why does air quality change during the day?
+- Is outdoor exercise advisable today?
+- How can I improve my indoor air?
+- How can I protect children?
+- What can my community do?
+- Which lifestyle choices matter most?
+
+Gemini should provide:
+- Simple explanations.
+- Relevant context.
+- Practical recommendations.
+- Clear reasoning.
+- Uncertainty disclosures.
+- Follow-up suggestions.
+
+Support:
+- Beginner explanations.
+- Detailed explanations.
+- Family-friendly mode.
+
+The AI must not fabricate scientific citations, live measurements, official alerts, or data sources.
+
+---
+
+# 12. GEMINI AI CHAT ASSISTANT
+
+Create a beautifully designed conversational assistant.
+
+Name:
+"BreatheWise AI Assistant"
+
+The assistant must use Google Gemini API.
+
+It must be context-aware of:
+- Current selected location.
+- Current AQI, if real data is available.
+- Available pollutant values.
+- User preferences.
+- Daily routine.
+- Household context, if the user has provided it.
+- Budget.
+- Sustainability goals.
+
+Capabilities:
+- Personalized pollution precautions.
+- Daily routine generation.
+- Indoor air improvement.
+- Activity modification.
+- Pollution explanations.
+- Sustainable transportation.
+- Family protection.
+- Budget-based recommendations.
+- Air quality questions.
+
+The assistant must not answer as though it has live information when it does not.
+
+Every AI response must be:
+- Clear.
+- Structured.
+- Practical.
+- Contextual.
+- Respectful.
+- Concise by default.
+- Expandable for detailed explanations.
+
+Use:
+- Chat history.
+- Suggested prompt chips.
+- Loading indicators.
+- Retry.
+- Error handling.
+- Clear chat.
+- Markdown formatting.
+- Structured recommendation cards where appropriate.
+
+Suggested starter prompts:
+- "How should I plan my day with today's AQI?"
+- "Protect my family from today's pollution."
+- "Improve the air quality inside my home."
+- "Suggest a pollution-friendly commute."
+- "Create a low-emission weekly routine."
+- "Explain today's air quality in simple words."
+
+---
+
+# 13. AIR QUALITY DATA INTEGRATION
+
+Implement a genuine environmental data integration architecture.
+
+Investigate and use an appropriate current air quality provider, such as a supported OpenAQ endpoint, official government AQI provider, or another reliable API that supports the necessary location and pollutant data.
+
+Before choosing the API:
+- Inspect current API documentation.
+- Verify availability.
+- Verify terms of service.
+- Verify API key requirements.
+- Verify geographic coverage.
+- Verify data freshness.
+- Verify pollutant availability.
+- Verify AQI calculation methodology.
+- Verify whether attribution is required.
+
+Use a provider abstraction layer so the application can switch data sources.
+
+Implement:
+- Location lookup.
+- Current air quality retrieval.
+- Pollutant readings.
+- Timestamp.
+- Data source attribution.
+- Loading states.
+- Error handling.
+- Retry.
+- Request timeout.
+- Rate-limit handling.
+- Caching where appropriate.
+- Data freshness indicators.
+
+Never fabricate live data.
+
+If API access is unavailable:
+1. Display a clear offline or demo state.
+2. Use a clearly labeled demo dataset.
+3. Explain that the values are illustrative.
+4. Do not falsely represent sample data as real measurements.
+
+If multiple AQI systems are supported, identify which system is used.
+
+Do not mix AQI scales or pollutant concentration units.
+
+---
+
+# 14. LOCATION SEARCH
+
+Implement a reliable location experience.
+
+Users should be able to:
+- Search cities.
+- Search neighborhoods when supported.
+- Use current location.
+- Select locations from search results.
+- Switch between locations.
+- Save favorite cities.
+- View location-specific data.
+
+Include:
+- Search suggestions.
+- Empty states.
+- Search loading.
+- Error handling.
+- Location permissions.
+- Clear selection.
+- Recent locations.
+
+Do not assume the user's location.
+
+Do not access precise location without consent.
+
+---
+
+# 15. AI RECOMMENDATION ENGINE
+
+Build a centralized Gemini AI recommendation service.
+
+Do not scatter API calls across UI components.
+
+Use a dedicated service and reusable prompt templates.
+
+Inputs should include relevant context:
+- AQI.
+- Pollutant measurements.
+- Data timestamp.
+- Location.
+- Weather context, only if available.
+- User activities.
+- Household preferences.
+- Schedule.
+- Budget.
+- Indoor conditions.
+
+Generate structured recommendations with fields such as:
+
+- Title.
+- Category.
+- Priority.
+- Action.
+- Explanation.
+- Estimated effort.
+- Estimated cost.
+- Impact description.
+- Confidence or limitation.
+- Suggested time.
+
+Validate the AI response before displaying it.
+
+Handle:
+- Invalid JSON.
+- Empty output.
+- Refusal.
+- Malformed content.
+- Network failure.
+- API quota exceeded.
+- API key missing.
+- Excessive response.
+- Timeout.
+
+Do not trust AI output as verified environmental measurements.
+
+---
+
+# 16. IMPACT EXPLAINER
+
+Create an "Impact of My Choices" section.
+
+Explain how actions affect:
+- Personal exposure.
+- Transportation emissions.
+- Energy use.
+- Waste.
+- Sustainable habits.
+
+Use visual comparisons:
+- Current habit.
+- Alternative habit.
+- Estimated benefit.
+- Assumptions.
+
+Examples:
+- Short vehicle trip versus walking when practical.
+- Private vehicle versus public transport.
+- Idling versus switching off the engine.
+- Outdoor exercise during polluted periods versus indoor exercise.
+
+Use realistic estimates only when reliable factors are available.
+
+If the exact impact cannot be calculated:
+- Explain the directional impact.
+- Avoid inventing numbers.
+- Use qualitative labels instead of fake precision.
+
+Create a visual "Your Actions This Week" impact dashboard.
+
+---
+
+# 17. COMMUNITY ACTION MODE
+
+Create a community-level feature.
+
+Allow users to:
+- Create a neighborhood awareness checklist.
+- Share general clean-air actions.
+- Organize walking or cycling initiatives.
+- Encourage carpooling.
+- Report pollution concerns through an informational workflow.
+- Create community clean-air goals.
+- Share non-sensitive environmental tips.
+
+Include:
+- Community goals.
+- Action checklist.
+- Participation tracker.
+- Community education cards.
+
+Do not create fake community statistics.
+
+Clearly label locally reported or simulated information.
+
+---
+
+# 18. EDUCATIONAL CENTER
+
+Create a visually engaging learning center.
+
+Topics:
+- What is AQI?
+- PM2.5 versus PM10.
+- Why winter smog occurs.
+- Temperature inversions.
+- Vehicle emissions.
+- Indoor pollution.
+- Cleaner cooking.
+- Air purifiers.
+- Masks and their limitations.
+- Pollution and exercise.
+- Protecting vulnerable groups.
+- Sustainable urban living.
+
+Use:
+- Visual explanations.
+- Simple illustrations.
+- Interactive cards.
+- Glossary.
+- Frequently asked questions.
+- Beginner-friendly language.
+
+All health-related information should be conservative, evidence-aware, and appropriately qualified.
+
+---
+
+# 19. NOTIFICATIONS AND ALERTS
+
+Create a notification center with:
+- AQI alerts.
+- Sudden changes.
+- Daily summary.
+- Outdoor activity warnings.
+- Planner reminders.
+- Indoor air tips.
+- Sustainability reminders.
+
+Provide:
+- Notification preferences.
+- Alert threshold settings.
+- Quiet hours.
+- Location-specific preferences.
+- Clear notification history.
+
+If browser push notifications are not configured, implement in-app notifications and clearly distinguish them from push notifications.
+
+Never claim that a notification was delivered if it was not.
+
+---
+
+# 20. PERSONALIZATION AND SETTINGS
+
+Create a settings page.
+
+Include:
+- Profile preferences.
+- Preferred units.
+- Location preferences.
+- AQI system selection, if supported.
+- Accessibility preferences.
+- Notification preferences.
+- Data controls.
+- Clear chat history.
+- Delete activity logs.
+- Reset application data.
+- Privacy explanation.
+
+Allow users to export their activity data if practical.
+
+Make personal data storage explicit.
+
+Use local persistence only for appropriate non-sensitive data and provide a clear reset option.
+
+Do not unnecessarily store sensitive health information.
+
+---
+
+# 21. TECHNICAL ARCHITECTURE
+
+Build using a modern, maintainable architecture.
+
+Preferred technology:
+- React.
+- TypeScript.
+- Vite.
+- Tailwind CSS or a well-structured styling system.
+- Reusable components.
+- Proper service layer.
+- Hooks.
+- Schema validation.
+- Modular state management.
+
+Suggested architecture:
+
+src/
+  components/
+  features/
+    dashboard/
+    air-quality/
+    daily-planner/
+    indoor-air/
+    family/
+    commute/
+    sustainability/
+    exposure/
+    assistant/
+    community/
+    education/
+  services/
+    gemini/
+    air-quality/
+    location/
+    weather/
+  hooks/
+  utils/
+  types/
+  data/
+  pages/
+
+Adapt this architecture appropriately to the existing Google AI Studio environment.
+
+Do not force a complex architecture unnecessarily.
+
+Use:
+- Typed interfaces.
+- Reusable components.
+- Separation of concerns.
+- Centralized error handling.
+- Input validation.
+- Clean data models.
+- Consistent naming.
+- Reusable hooks.
+- Small, understandable functions.
+
+Avoid:
+- Giant single-file implementations.
+- Duplicate logic.
+- Unnecessary dependencies.
+- Dead code.
+- Fake abstractions.
+- Unused state.
+- Hardcoded dashboard values.
+- Overengineered solutions.
+
+---
+
+# 22. SECURITY
+
+Treat security as a critical requirement.
+
+- Never expose production API secrets in source code.
+- Never commit .env files.
+- Use secure server-side API handling whenever possible.
+- If the platform requires frontend configuration, follow its supported secure secret management method and document the limitations.
+- Validate user inputs.
+- Validate AI responses.
+- Prevent injection into HTML.
+- Avoid unsafe HTML rendering.
+- Handle errors without leaking sensitive information.
+- Protect stored user data.
+- Limit unnecessary data collection.
+- Avoid collecting precise location unnecessarily.
+- Use explicit permission for geolocation.
+- Do not store health-related profile data unless required and consented to.
+- Include privacy controls.
+- Ensure API failures do not crash the application.
+
+Do not claim security protections exist unless they are implemented.
+
+---
+
+# 23. PERFORMANCE AND EFFICIENCY
+
+Optimize for a responsive, fast experience.
+
+- Lazy-load heavy components.
+- Avoid unnecessary rerenders.
+- Cache appropriate AQI responses.
+- Debounce location search.
+- Avoid duplicate API requests.
+- Keep bundles efficient.
+- Use loading skeletons.
+- Use lightweight chart libraries.
+- Optimize assets.
+- Avoid unnecessary polling.
+- Implement graceful degradation.
+
+Do not sacrifice functionality or accessibility for performance.
+
+Do not optimize blindly.
+
+---
+
+# 24. ACCESSIBILITY
+
+Target WCAG 2.2 AA where practical.
+
+Implement:
+- Semantic HTML.
+- Keyboard accessibility.
+- Visible focus indicators.
+- Proper labels.
+- Accessible buttons.
+- Screen-reader-friendly charts.
+- Accessible AQI status descriptions.
+- Sufficient contrast.
+- Reduced-motion support.
+- Touch-friendly controls.
+- Accessible error messages.
+- Logical heading structure.
+- ARIA only where necessary.
+
+Never communicate AQI severity through color alone.
+
+Use text labels and icons in addition to colors.
+
+---
+
+# 25. TESTING
+
+Create meaningful tests.
+
+Test:
+- AQI category calculations.
+- Pollutant parsing.
+- Data freshness.
+- Location search.
+- AQI API failures.
+- Gemini response validation.
+- Invalid Gemini response.
+- Missing API key.
+- Daily planner generation.
+- User preferences.
+- Exposure log.
+- Sustainable impact calculations.
+- Empty states.
+- Error states.
+- Form validation.
+- Data persistence.
+- Critical navigation.
+- Accessibility-critical controls.
+
+Use deterministic mocked API responses for testing.
+
+Do not fabricate test results.
+
+Run actual tests and fix the failures.
+
+---
+
+# 26. UX STATES
+
+Every major feature must have:
+
+- Loading state.
+- Success state.
+- Empty state.
+- Error state.
+- Retry.
+- Helpful guidance.
+
+No dead buttons.
+
+No fake success messages.
+
+No placeholder links.
+
+No empty navigation pages.
+
+Every major feature should be functional.
+
+---
+
+# 27. DEMO MODE
+
+Provide a clearly labeled Demo Mode for competition judges.
+
+Demo Mode must:
+- Work without an API key.
+- Use a realistic but explicitly fictional dataset.
+- Demonstrate AQI categories.
+- Demonstrate pollutant cards.
+- Demonstrate daily planner.
+- Demonstrate family precautions.
+- Demonstrate indoor air recommendations.
+- Demonstrate sustainability actions.
+- Demonstrate AI assistant mock responses, if Gemini is unavailable.
+
+Clearly show:
+"DEMO DATA — NOT LIVE ENVIRONMENTAL MEASUREMENTS"
+
+Never mix demo data with live measurements without clear labeling.
+
+Demo Mode should make it possible for judges to explore the application without setup.
+
+---
+
+# 28. FIRST-TIME USER EXPERIENCE
+
+Create an elegant onboarding flow.
+
+Step 1:
+Select your city.
+
+Step 2:
+Choose your priorities:
+- Protect my family.
+- Plan outdoor activities.
+- Improve home air.
+- Reduce pollution exposure.
+- Live more sustainably.
+
+Step 3:
+Optional lifestyle preferences:
+- Student.
+- Office worker.
+- Outdoor worker.
+- Parent.
+- Senior.
+- General user.
+
+Step 4:
+Optional daily schedule.
+
+Step 5:
+Generate a personalized clean-air plan.
+
+Allow skipping onboarding.
+
+Do not force users to provide sensitive information.
+
+Make onboarding fast and intuitive.
+
+---
+
+# 29. DASHBOARD PERSONALIZATION
+
+The dashboard should dynamically adapt.
+
+For example:
+
+When AQI is good:
+- Encourage reasonable outdoor activities.
+- Highlight sustainable mobility.
+- Suggest routine outdoor exercise.
+
+When AQI is moderate:
+- Suggest reducing strenuous outdoor activity for sensitive individuals.
+- Recommend checking trends.
+- Offer suitable alternatives.
+
+When AQI is poor:
+- Suggest reducing outdoor exposure.
+- Recommend indoor activity alternatives.
+- Prioritize household protection.
+
+When AQI is severe:
+- Provide a clear, calm alert.
+- Recommend avoiding unnecessary outdoor activity.
+- Suggest following official local advisories.
+- Provide a practical checklist.
+- Avoid alarmist language.
+
+Recommendations must reflect the actual AQI category and data source.
+
+---
+
+# 30. PRODUCT DIFFERENTIATORS
+
+Create a polished collection of unique features:
+
+1. AI Clean-Air Daily Planner.
+2. Family Protection Mode.
+3. Explain My Air.
+4. Indoor Air Care Planner.
+5. Pollution-Aware Activity Planner.
+6. Sustainable Habit Tracker.
+7. Pollution Exposure Awareness Tracker.
+8. Lower-Exposure Commute Assistant.
+9. Clean-Air Impact Dashboard.
+10. Community Action Center.
+11. Personalized Gemini AI Assistant.
+12. Severe Smog Mode.
+13. AQI Trend Intelligence.
+14. Smart Home Improvement Advisor.
+15. Budget-Based Clean-Air Recommendations.
+
+These features must be implemented as coherent workflows, not merely cards describing future functionality.
+
+---
+
+# 31. README AND DOCUMENTATION
+
+Create a complete professional README.md.
+
+Include:
+- Project name.
+- Challenge number.
+- Problem statement.
+- Solution.
+- Key features.
+- Screenshots section.
+- Architecture.
+- Technologies.
+- AI integration.
+- Environmental data sources.
+- AQI methodology.
+- Setup.
+- Environment variables.
+- Running locally.
+- Build instructions.
+- Testing.
+- Deployment.
+- Demo mode.
+- Limitations.
+- Privacy.
+- Security.
+- Credits.
+- Future improvements.
+
+Create:
+- .gitignore.
+- .env.example.
+- Appropriate license file, if desired.
+- No secrets.
+
+Do not invent API integrations or claim functionality that does not exist.
+
+---
+
+# 32. FINAL IMPLEMENTATION REQUIREMENTS
+
+Before finishing:
+
+1. Inspect the environment and available tools.
+2. Plan the architecture.
+3. Build the complete application.
+4. Implement all core workflows.
+5. Verify every major navigation route.
+6. Verify buttons and forms.
+7. Verify live data behavior.
+8. Verify demo mode.
+9. Verify Gemini integration.
+10. Verify loading, error, and empty states.
+11. Run TypeScript checks.
+12. Run lint.
+13. Run tests.
+14. Run production build.
+15. Fix actual errors.
+16. Check accessibility.
+17. Check responsiveness.
+18. Check secrets.
+19. Check dependencies.
+20. Review the README.
+
+Do not claim a check passed unless it was actually executed.
+
+---
+
+# 33. PRIORITY ORDER
+
+If implementation time or context is limited, prioritize:
+
+P0 — Must be fully functional:
+- Beautiful dashboard.
+- Location search.
+- AQI and pollutant information.
+- Live data integration or clearly labeled demo data.
+- Gemini AI assistant.
+- Daily pollution-aware planner.
+- Indoor air care recommendations.
+- Family protection recommendations.
+- Mobile responsive design.
+- Error handling.
+
+P1 — Implement next:
+- Outdoor activity planner.
+- Sustainability tracker.
+- Exposure awareness tracker.
+- AQI trend charts.
+- Notification center.
+- Budget-based indoor improvement plans.
+
+P2 — Complete:
+- Community mode.
+- Educational center.
+- Commute assistant.
+- Export.
+- Advanced personalization.
+
+Do not leave P0 features as placeholders.
+
+---
+
+# 34. FINAL PRODUCT EXPECTATION
+
+The final application should feel like a product that could genuinely help an urban family during a severe pollution episode.
+
+The user should be able to open the app and immediately understand:
+
+- What is happening with the air?
+- How bad is it?
+- What should I do today?
+- What should my family avoid?
+- How can I protect my indoor environment?
+- What alternatives do I have?
+- How can I make better environmental choices?
+- What impact can my actions have?
+
+Make the experience intelligent, useful, trustworthy, visually impressive, technically clean, and fully functional.
+
+Do not merely generate a landing page.
+
+Do not merely generate UI cards.
+
+Implement working features.
+
+Build BreatheWise AI now.

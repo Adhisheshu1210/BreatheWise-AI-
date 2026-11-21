@@ -1,0 +1,6 @@
+{
+  "name": "BreatheWise AI",
+  "description": "Intelligent Urban Air Quality, Smog Safety & Sustainable Living Assistant that turns real-time air quality intelligence into calm, personalized daily actions.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
