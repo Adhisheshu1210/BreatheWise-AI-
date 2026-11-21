@@ -38,12 +38,9 @@ import type {
   SustainabilityGoal,
   UserPreferences,
 } from './types/airQuality.ts';
-import {
-  buildPersonalizedDailyPlan,
-  getAqiCategory,
-  isWithinQuietHours,
-} from './utils/aqi.ts';
+import { buildPersonalizedDailyPlan } from './utils/aqi.ts';
 import { downloadJsonFile } from './utils/exportJson.ts';
+import { evaluateInAppNotifications } from './utils/notifications.ts';
 
 const AirQualityMapView = lazy(() =>
   import('./features/AirQualityMapView.tsx').then((m) => ({
@@ -173,81 +170,13 @@ export default function App() {
   // Generate in-app alert if threshold is crossed (respecting quiet hours for non-severe alerts)
   useEffect(() => {
     if (!activeSnapshot) return;
-    const usAqi = activeSnapshot.currentUsAqi;
-    const cat = getAqiCategory(usAqi, 'us_aqi');
-    const quiet = isWithinQuietHours(
-      prefs.notifications.quietStart,
-      prefs.notifications.quietEnd
+    setNotifications((prev) =>
+      evaluateInAppNotifications({
+        snapshot: activeSnapshot,
+        notificationPrefs: prefs.notifications,
+        existing: prev,
+      })
     );
-    const todayKey = new Date().toISOString().slice(0, 10);
-
-    setNotifications((prev) => {
-      const additions: NotificationEntry[] = [];
-
-      if (
-        prefs.notifications.enableInAppAlerts &&
-        usAqi !== null &&
-        usAqi >= prefs.notifications.aqiThreshold &&
-        (!quiet || usAqi > 200)
-      ) {
-        const dedupeKey = `${activeSnapshot.location.id}-${usAqi}-${
-          activeSnapshot.isDemo ? 'demo' : 'live'
-        }`;
-        if (!prev.some((n) => n.id === dedupeKey)) {
-          additions.push({
-            id: dedupeKey,
-            timestampIso: new Date().toISOString(),
-            type: 'aqi_alert',
-            severity: usAqi > 200 ? 'severe' : usAqi > 150 ? 'elevated' : 'warning',
-            title: `${activeSnapshot.isDemo ? '[Demo] ' : ''}${cat.label} Alert (US AQI ${usAqi})`,
-            body: `Threshold (${prefs.notifications.aqiThreshold}) exceeded in ${activeSnapshot.location.name}. ${cat.outdoorGuidance}`,
-            locationName: activeSnapshot.location.name,
-            read: false,
-          });
-        }
-      }
-
-      if (prefs.notifications.dailySummary && !quiet) {
-        const summaryId = `summary-${activeSnapshot.location.id}-${todayKey}-${
-          activeSnapshot.isDemo ? 'demo' : 'live'
-        }`;
-        if (!prev.some((n) => n.id === summaryId)) {
-          additions.push({
-            id: summaryId,
-            timestampIso: new Date().toISOString(),
-            type: 'daily_summary',
-            severity: 'info',
-            title: `${activeSnapshot.isDemo ? '[Demo] ' : ''}Daily Summary · ${
-              activeSnapshot.location.name
-            }`,
-            body: `US AQI ${usAqi ?? 'N/A'} (${cat.label}). ${cat.summary}`,
-            locationName: activeSnapshot.location.name,
-            read: false,
-          });
-        }
-      }
-
-      if (prefs.notifications.indoorTips && !quiet && usAqi !== null && usAqi > 100) {
-        const tipId = `indoor-tip-${activeSnapshot.location.id}-${todayKey}-${
-          activeSnapshot.isDemo ? 'demo' : 'live'
-        }`;
-        if (!prev.some((n) => n.id === tipId)) {
-          additions.push({
-            id: tipId,
-            timestampIso: new Date().toISOString(),
-            type: 'indoor',
-            severity: 'info',
-            title: `${activeSnapshot.isDemo ? '[Demo] ' : ''}Indoor Air Care Reminder`,
-            body: cat.ventilationGuidance,
-            locationName: activeSnapshot.location.name,
-            read: false,
-          });
-        }
-      }
-
-      if (additions.length === 0) return prev;
-      return [...additions, ...prev].slice(0, 25);
-    });
   }, [
     activeSnapshot,
     prefs.notifications.aqiThreshold,

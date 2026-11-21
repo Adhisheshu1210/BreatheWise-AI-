@@ -16,6 +16,8 @@ import {
   calculateSustainabilityScore,
   getActiveAqiValue,
   getAqiCategory,
+  normalizePlanCategory,
+  normalizePlanPriority,
   summarizeHourlyWindows,
 } from '../utils/aqi.ts';
 
@@ -450,38 +452,12 @@ export function normalizeDailyPlanItems(
     explanation?: string;
   }>
 ): DailyPlanItem[] {
-  const validCategories = new Set([
-    'monitoring',
-    'commute',
-    'exercise',
-    'indoor',
-    'family',
-    'ventilation',
-  ]);
-  const validPriorities = new Set(['high', 'medium', 'low']);
-
-  const mapCategory = (raw?: unknown): DailyPlanItem['category'] => {
-    const s = String(raw ?? '').trim().toLowerCase();
-    if (validCategories.has(s)) return s as DailyPlanItem['category'];
-    if (s.includes('indoor') || s.includes('home') || s.includes('sleep')) return 'indoor';
-    if (s.includes('ventilat')) return 'ventilation';
-    if (s.includes('commut') || s.includes('transit') || s.includes('travel')) return 'commute';
-    if (s.includes('exercis') || s.includes('fitness') || s.includes('outdoor')) return 'exercise';
-    if (s.includes('famil') || s.includes('child') || s.includes('school')) return 'family';
-    return 'monitoring';
-  };
-
-  const mapPriority = (raw?: unknown): DailyPlanItem['priority'] => {
-    const s = String(raw ?? '').trim().toLowerCase();
-    return validPriorities.has(s) ? (s as DailyPlanItem['priority']) : 'medium';
-  };
-
   return rawItems.map((item, idx) => ({
     id: `ai-plan-${Date.now()}-${idx}`,
     time: item.time || '09:00',
     title: item.title || 'Air-Aware Activity',
-    category: mapCategory(item.category),
-    priority: mapPriority(item.priority),
+    category: normalizePlanCategory(item.category),
+    priority: normalizePlanPriority(item.priority),
     action: item.action || 'Follow current AQI guidance.',
     alternative: item.alternative || 'Choose an indoor option if air worsens.',
     explanation: item.explanation || 'Tailored to your schedule and current air quality.',

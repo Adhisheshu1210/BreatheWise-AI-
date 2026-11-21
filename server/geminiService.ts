@@ -4,6 +4,7 @@ import {
   GeminiServiceError,
   MODEL_NAME,
   VALID_RECOMMENDATION_TASKS,
+  isRecommendationTaskType,
   normalizeAndAuditContext,
   parseJsonObject,
   sanitizePayloadValue,
@@ -17,6 +18,7 @@ import { STRUCTURED_WORKFLOWS } from './geminiWorkflows.ts';
 export {
   GeminiServiceError,
   VALID_RECOMMENDATION_TASKS,
+  isRecommendationTaskType,
   normalizeAndAuditContext,
   type AuditedContext,
   type ChatContextInput,

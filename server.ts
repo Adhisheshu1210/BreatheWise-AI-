@@ -8,8 +8,7 @@ import {
   GeminiServiceError,
   generateChatResponse,
   generateStructuredRecommendation,
-  VALID_RECOMMENDATION_TASKS,
-  type RecommendationTaskType,
+  isRecommendationTaskType,
 } from './server/geminiService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +23,33 @@ function stripControlChars(value: unknown, maxLen: number): string {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+export function parseCoordinateQuery(query: {
+  lat?: unknown;
+  lon?: unknown;
+}): { latitude: number; longitude: number } | null {
+  const latStr = typeof query.lat === 'string' ? query.lat.trim() : '';
+  const lonStr = typeof query.lon === 'string' ? query.lon.trim() : '';
+  if (!latStr || !lonStr) return null;
+  const lat = Number(latStr);
+  const lon = Number(lonStr);
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lon) ||
+    lat < -90 ||
+    lat > 90 ||
+    lon < -180 ||
+    lon > 180
+  ) {
+    return null;
+  }
+  return { latitude: lat, longitude: lon };
+}
+
+function getBodyParserErrorType(err: unknown): string | null {
+  if (!isPlainObject(err)) return null;
+  return typeof err.type === 'string' ? err.type : null;
 }
 
 function createRateLimiter(options: { windowMs: number; maxRequests: number }) {
@@ -106,35 +132,26 @@ export function createApp() {
   });
 
   app.get('/api/air-quality', dataRateLimiter, async (req, res) => {
-    const lat = Number(req.query.lat);
-    const lon = Number(req.query.lon);
-    const name = stripControlChars(req.query.name, 100) || 'Selected Location';
-    const country = stripControlChars(req.query.country, 80);
-    const admin1Raw = stripControlChars(req.query.admin1, 80);
-    const admin1 = admin1Raw || undefined;
-
-    if (
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lon) ||
-      lat < -90 ||
-      lat > 90 ||
-      lon < -180 ||
-      lon > 180
-    ) {
+    const coords = parseCoordinateQuery(req.query);
+    if (!coords) {
       return res.status(400).json({
         error: 'INVALID_COORDINATES',
         message: 'Valid latitude (-90 to 90) and longitude (-180 to 180) are required.',
       });
     }
 
+    const name = stripControlChars(req.query.name, 100) || 'Selected Location';
+    const country = stripControlChars(req.query.country, 80);
+    const admin1 = stripControlChars(req.query.admin1, 80) || undefined;
+
     try {
       const snapshot = await activeAirQualityProvider.fetchAirQuality({
-        id: `loc-${lat.toFixed(3)}-${lon.toFixed(3)}`,
+        id: `loc-${coords.latitude.toFixed(3)}-${coords.longitude.toFixed(3)}`,
         name,
         admin1,
         country,
-        latitude: lat,
-        longitude: lon,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       });
       return res.json({ snapshot });
     } catch (err) {
@@ -149,26 +166,22 @@ export function createApp() {
   });
 
   app.get('/api/air-quality/grid', dataRateLimiter, async (req, res) => {
-    const lat = Number(req.query.lat);
-    const lon = Number(req.query.lon);
-    const name = stripControlChars(req.query.name, 80) || 'Selected Area';
-
-    if (
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lon) ||
-      lat < -90 ||
-      lat > 90 ||
-      lon < -180 ||
-      lon > 180
-    ) {
+    const coords = parseCoordinateQuery(req.query);
+    if (!coords) {
       return res.status(400).json({
         error: 'INVALID_COORDINATES',
         message: 'Valid coordinates are required for regional map data.',
       });
     }
 
+    const name = stripControlChars(req.query.name, 80) || 'Selected Area';
+
     try {
-      const stations = await activeAirQualityProvider.fetchRegionalGrid(lat, lon, name);
+      const stations = await activeAirQualityProvider.fetchRegionalGrid(
+        coords.latitude,
+        coords.longitude,
+        name
+      );
       return res.json({ stations });
     } catch (err) {
       if (err instanceof ProviderError) {
@@ -208,14 +221,14 @@ export function createApp() {
     try {
       const body = isPlainObject(req.body) ? req.body : {};
       const { taskType, context, payload } = body;
-      if (!VALID_RECOMMENDATION_TASKS.includes(taskType as RecommendationTaskType)) {
+      if (!isRecommendationTaskType(taskType)) {
         return res.status(400).json({
           error: 'INVALID_TASK_TYPE',
           message: 'Unsupported AI recommendation task type.',
         });
       }
       const data = await generateStructuredRecommendation({
-        taskType: taskType as RecommendationTaskType,
+        taskType,
         context: isPlainObject(context) ? context : {},
         payload: isPlainObject(payload) ? payload : {},
       });
@@ -232,13 +245,14 @@ export function createApp() {
   });
 
   app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (err && typeof err === 'object' && 'type' in err && (err as { type?: string }).type === 'entity.parse.failed') {
+    const errType = getBodyParserErrorType(err);
+    if (errType === 'entity.parse.failed') {
       return res.status(400).json({
         error: 'BAD_REQUEST',
         message: 'Invalid JSON request payload.',
       });
     }
-    if (err && typeof err === 'object' && 'type' in err && (err as { type?: string }).type === 'entity.too.large') {
+    if (errType === 'entity.too.large') {
       return res.status(413).json({
         error: 'PAYLOAD_TOO_LARGE',
         message: 'Request payload exceeds maximum allowed size.',

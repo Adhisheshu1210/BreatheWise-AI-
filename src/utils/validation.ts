@@ -117,3 +117,23 @@ export function validatePollutionConcernInput(note: string): ValidationResult<st
   }
   return { valid: true, error: null, value: trimmed };
 }
+
+export function parseOptionValue<T extends string>(
+  raw: string,
+  allowed: readonly T[],
+  fallback: T
+): T {
+  const found = allowed.find((item) => item === raw);
+  return found !== undefined ? found : fallback;
+}
+
+export function clampNumber(
+  value: number,
+  min: number,
+  max: number,
+  fallback: number
+): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+

@@ -1,6 +1,8 @@
 import { Type, type Schema } from '@google/genai';
+import { normalizePlanCategory, normalizePlanPriority } from '../src/utils/aqi.ts';
 import {
   GeminiServiceError,
+  isPlainRecord,
   type RecommendationTaskType,
   sanitizeShortString,
   sanitizeStringArray,
@@ -61,12 +63,12 @@ Generate a practical, chronological daily routine of 5 to 6 items tailored stric
       const items = Array.isArray(parsed.items)
         ? parsed.items
             .slice(0, 8)
-            .filter((it): it is Record<string, unknown> => Boolean(it && typeof it === 'object'))
+            .filter(isPlainRecord)
             .map((it) => ({
               time: sanitizeShortString(it.time, 30) || '09:00',
               title: sanitizeShortString(it.title, 140),
-              category: sanitizeShortString(it.category, 30) || 'monitoring',
-              priority: sanitizeShortString(it.priority, 20) || 'medium',
+              category: normalizePlanCategory(it.category),
+              priority: normalizePlanPriority(it.priority),
               action: sanitizeShortString(it.action, 360),
               alternative:
                 sanitizeShortString(it.alternative, 300) || 'Move indoors if air worsens.',
@@ -134,7 +136,7 @@ Provide calm, non-diagnostic protection guidance tailored to each listed househo
       const groupAdvice = Array.isArray(parsed.groupAdvice)
         ? parsed.groupAdvice
             .slice(0, 8)
-            .filter((g): g is Record<string, unknown> => Boolean(g && typeof g === 'object'))
+            .filter(isPlainRecord)
             .map((g) => ({
               group: sanitizeShortString(g.group, 80) || 'Household',
               precaution: sanitizeShortString(g.precaution, 340),
@@ -257,7 +259,7 @@ Create a tailored room-by-room indoor air improvement plan matching the exact ho
       const rooms = Array.isArray(parsed.rooms)
         ? parsed.rooms
             .slice(0, 8)
-            .filter((r): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
+            .filter(isPlainRecord)
             .map((r) => ({
               room: sanitizeShortString(r.room, 60) || 'Bedroom',
               priorityAction: sanitizeShortString(r.priorityAction, 200),
@@ -265,10 +267,7 @@ Create a tailored room-by-room indoor air improvement plan matching the exact ho
             }))
             .filter((r) => r.priorityAction.length > 0 && r.details.length > 0)
         : [];
-      const rawChecklists =
-        parsed.checklists && typeof parsed.checklists === 'object'
-          ? (parsed.checklists as Record<string, unknown>)
-          : {};
+      const rawChecklists = isPlainRecord(parsed.checklists) ? parsed.checklists : {};
       const checklists = {
         daily: sanitizeStringArray(rawChecklists.daily, 8, 220),
         weekly: sanitizeStringArray(rawChecklists.weekly, 8, 220),
@@ -289,7 +288,7 @@ Create a tailored room-by-room indoor air improvement plan matching the exact ho
         budgetRecommendations: Array.isArray(parsed.budgetRecommendations)
           ? parsed.budgetRecommendations
               .slice(0, 6)
-              .filter((b): b is Record<string, unknown> => Boolean(b && typeof b === 'object'))
+              .filter(isPlainRecord)
               .map((b) => ({
                 tier: sanitizeShortString(b.tier, 60) || '₹0 Budget',
                 items: sanitizeStringArray(b.items, 6, 220),
@@ -298,11 +297,11 @@ Create a tailored room-by-room indoor air improvement plan matching the exact ho
         structuredItems: Array.isArray(parsed.structuredItems)
           ? parsed.structuredItems
               .slice(0, 6)
-              .filter((s): s is Record<string, unknown> => Boolean(s && typeof s === 'object'))
+              .filter(isPlainRecord)
               .map((s) => ({
                 title: sanitizeShortString(s.title, 120),
                 category: sanitizeShortString(s.category, 60),
-                priority: sanitizeShortString(s.priority, 20) || 'medium',
+                priority: normalizePlanPriority(s.priority),
                 action: sanitizeShortString(s.action, 300),
                 explanation: sanitizeShortString(s.explanation, 320),
                 estimatedEffort: sanitizeShortString(s.estimatedEffort, 80),
@@ -475,7 +474,7 @@ Analyze the user's active goals, completion progress, lifestyle role, commute mo
       const priorityActions = Array.isArray(parsed.priorityActions)
         ? parsed.priorityActions
             .slice(0, 5)
-            .filter((a): a is Record<string, unknown> => Boolean(a && typeof a === 'object'))
+            .filter(isPlainRecord)
             .map((a) => ({
               title: sanitizeShortString(a.title, 120),
               whyItMatters: sanitizeShortString(a.whyItMatters, 260),
@@ -604,7 +603,7 @@ Recommend prioritized clean-air upgrades strictly matched to the user's selected
       const prioritizedUpgrades = Array.isArray(parsed.prioritizedUpgrades)
         ? parsed.prioritizedUpgrades
             .slice(0, 5)
-            .filter((u): u is Record<string, unknown> => Boolean(u && typeof u === 'object'))
+            .filter(isPlainRecord)
             .map((u) => ({
               item: sanitizeShortString(u.item, 140),
               approxCostRange: sanitizeShortString(u.approxCostRange, 80) || 'Varies',
@@ -622,7 +621,7 @@ Recommend prioritized clean-air upgrades strictly matched to the user's selected
         );
       }
       return {
-        budgetLabel: sanitizeShortString(parsed.budgetLabel, 80),
+        budgetLabel: sanitizeShortString(parsed.budgetLabel, 80) || 'Budget Plan',
         strategySummary,
         prioritizedUpgrades,
         skipForNow: sanitizeStringArray(parsed.skipForNow, 4, 220),

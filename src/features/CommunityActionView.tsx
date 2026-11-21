@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Info, Plus, Users } from 'lucide-react';
 import { ChecklistToggleRow } from '../components/UiFeedback.tsx';
 import type { CommunityInitiative } from '../types/airQuality.ts';
+import { COMMUNITY_FORM_CATEGORIES } from '../utils/options.ts';
 import {
+  parseOptionValue,
   validateCommunityInitiativeInput,
   validatePollutionConcernInput,
 } from '../utils/validation.ts';
@@ -172,7 +174,9 @@ export function CommunityActionView({
                   id="comm-category"
                   value={category}
                   onChange={(e) =>
-                    setCategory(e.target.value as CommunityInitiative['category'])
+                    setCategory(
+                      parseOptionValue(e.target.value, COMMUNITY_FORM_CATEGORIES, 'carpool')
+                    )
                   }
                   className="w-full px-2.5 py-2 text-xs border border-slate-300 rounded-lg bg-white"
                 >

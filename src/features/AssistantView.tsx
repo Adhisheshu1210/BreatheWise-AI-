@@ -1,24 +1,15 @@
 import { useState } from 'react';
-import {
-  Loader2,
-  MessageSquare,
-  RefreshCw,
-  Send,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
-import { AiErrorBanner } from '../components/UiFeedback.tsx';
+import { Loader2, MessageSquare, RefreshCw, Send, Trash2 } from 'lucide-react';
+import { ExplainAirPanel } from '../components/ExplainAirPanel.tsx';
+import { FormattedAiText } from '../components/FormattedAiText.tsx';
 import {
   buildAiContextPayload,
   buildDemoChatReply,
-  buildDemoExplainAir,
-  requestStructuredAiApi,
   sendChatMessageApi,
 } from '../services/apiClient.ts';
 import type {
   AirQualitySnapshot,
   ChatMessage,
-  ExplainAirResult,
   ExposureLogEntry,
   IndoorHomeProfile,
   SustainabilityGoal,
@@ -46,70 +37,6 @@ const STARTER_PROMPTS = [
   "Explain today's air quality in simple words.",
 ];
 
-const EXPLAIN_QUESTIONS = [
-  'Why is the air quality bad today?',
-  'What is PM2.5?',
-  'Why does winter smog occur?',
-  'Why does air quality change during the day?',
-  'Is outdoor exercise advisable today?',
-  'How can I improve my indoor air?',
-  'How can I protect children?',
-  'What can my community do?',
-  'Which lifestyle choices matter most?',
-];
-
-function FormattedText({ text }: { text: string }) {
-  // Safe React-only line/bold/italic/heading renderer without raw HTML injection
-  const lines = text.split('\n');
-  const renderInline = (content: string) =>
-    content.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g).map((part, pIdx) => {
-      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-        return (
-          <strong key={pIdx} className="font-semibold text-slate-900">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-        return (
-          <em key={pIdx} className="italic text-slate-700">
-            {part.slice(1, -1)}
-          </em>
-        );
-      }
-      return <span key={pIdx}>{part}</span>;
-    });
-
-  return (
-    <div className="space-y-1.5 text-xs leading-relaxed">
-      {lines.map((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={idx} className="h-1" />;
-
-        if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
-          const headingText = trimmed.replace(/^#{1,3}\s+/, '');
-          return (
-            <h4 key={idx} className="font-semibold text-slate-900 pt-1">
-              {renderInline(headingText)}
-            </h4>
-          );
-        }
-
-        if (/^[-*]\s+/.test(trimmed)) {
-          const body = trimmed.replace(/^[-*]\s+/, '');
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-1">
-              <span className="text-teal-700 mt-0.5">•</span>
-              <span>{renderInline(body)}</span>
-            </div>
-          );
-        }
-        return <p key={idx}>{renderInline(trimmed)}</p>;
-      })}
-    </div>
-  );
-}
-
 export function AssistantView({
   snapshot,
   prefs,
@@ -124,13 +51,6 @@ export function AssistantView({
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
-
-  // Explain My Air state
-  const [explainMode, setExplainMode] = useState<'beginner' | 'detailed' | 'family'>('beginner');
-  const [explainQuestion, setExplainQuestion] = useState(EXPLAIN_QUESTIONS[0]);
-  const [explainLoading, setExplainLoading] = useState(false);
-  const [explainError, setExplainError] = useState<string | null>(null);
-  const [explainResult, setExplainResult] = useState<ExplainAirResult | null>(null);
 
   const activeAqi = snapshot ? getActiveAqiValue(snapshot, prefs.aqiStandard) : null;
 
@@ -228,46 +148,6 @@ export function AssistantView({
     }
   };
 
-  const runExplainMyAir = async (q: string, forceRefresh = false) => {
-    if (!snapshot) return;
-    setExplainQuestion(q);
-    setExplainError(null);
-
-    if (prefs.demoMode || !geminiConfigured) {
-      setExplainResult(buildDemoExplainAir(q, explainMode, snapshot));
-      return;
-    }
-
-    setExplainLoading(true);
-    try {
-      const ctx = buildAiContextPayload({
-        snapshot,
-        prefs,
-        indoorProfile: homeProfile,
-        sustainabilityGoals,
-        exposureLogs,
-      });
-      const res = await requestStructuredAiApi<
-        Omit<ExplainAirResult, 'question' | 'mode' | 'isAiGenerated'>
-      >({
-        taskType: 'explain-air',
-        context: ctx,
-        payload: { question: q, readingMode: explainMode },
-        forceRefresh,
-      });
-      setExplainResult({
-        ...res,
-        question: q,
-        mode: explainMode,
-        isAiGenerated: true,
-      });
-    } catch (err) {
-      setExplainError(err instanceof Error ? err.message : 'Unable to generate explanation.');
-    } finally {
-      setExplainLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -344,7 +224,7 @@ export function AssistantView({
                       <button
                         key={prompt}
                         type="button"
-                        onClick={() => sendMessage(prompt)}
+                        onClick={() => void sendMessage(prompt)}
                         className="p-3 rounded-lg border border-slate-200 bg-white hover:border-teal-500 text-xs font-medium text-slate-800 transition-colors"
                       >
                         {prompt}
@@ -371,7 +251,7 @@ export function AssistantView({
                         <p className="leading-relaxed">{msg.content}</p>
                       ) : (
                         <>
-                          <FormattedText text={msg.content} />
+                          <FormattedAiText text={msg.content} />
                           {msg.contextSnapshotLabel && (
                             <p className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
                               Context: {msg.contextSnapshotLabel}
@@ -395,7 +275,7 @@ export function AssistantView({
                 <div className="flex justify-start">
                   <button
                     type="button"
-                    onClick={() => sendMessage(lastFailedPrompt)}
+                    onClick={() => void sendMessage(lastFailedPrompt)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -431,132 +311,14 @@ export function AssistantView({
             </form>
           </div>
         ) : (
-          /* Explain My Air Structured Module */
-          <div className="p-5 sm:p-6 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  Explain My Air — Plain-Language Environmental Explainer
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Choose an explanation depth and tap any common question.
-                </p>
-              </div>
-              <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start" role="group" aria-label="Explanation depth">
-                {(
-                  [
-                    ['beginner', 'Beginner'],
-                    ['detailed', 'Detailed'],
-                    ['family', 'Family-Friendly'],
-                  ] as const
-                ).map(([m, lbl]) => (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={explainMode === m}
-                    onClick={() => setExplainMode(m)}
-                    className={`px-3 py-1 text-xs font-medium rounded-md ${
-                      explainMode === m ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                    }`}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {EXPLAIN_QUESTIONS.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => runExplainMyAir(q)}
-                  disabled={explainLoading}
-                  className={`p-3 rounded-lg border text-left text-xs font-medium transition-colors ${
-                    explainQuestion === q && explainResult
-                      ? 'border-teal-600 bg-teal-50 text-teal-950'
-                      : 'border-slate-200 hover:bg-slate-50 text-slate-800'
-                  }`}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-
-            {explainLoading && (
-              <div
-                role="status"
-                aria-live="polite"
-                className="py-8 flex items-center justify-center gap-2 text-xs text-slate-600"
-              >
-                <Loader2 className="w-4 h-4 animate-spin text-teal-700" aria-hidden="true" />
-                Explaining current conditions...
-              </div>
-            )}
-
-            {explainError && (
-              <AiErrorBanner
-                error={explainError}
-                onRetry={() => runExplainMyAir(explainQuestion, true)}
-                secondaryLabel={snapshot ? 'Show Demo Explanation' : undefined}
-                onSecondaryAction={
-                  snapshot
-                    ? () => setExplainResult(buildDemoExplainAir(explainQuestion, explainMode, snapshot))
-                    : undefined
-                }
-              />
-            )}
-
-            {explainResult && !explainLoading && (
-              <div className="p-5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-teal-700" />
-                    {explainResult.question}
-                  </h3>
-                  <span className="text-[11px] text-slate-500 capitalize">
-                    {explainResult.mode} mode ·{' '}
-                    {explainResult.isDemoMock ? 'Demo simulation' : 'Gemini explanation'}
-                  </span>
-                </div>
-
-                <p className="text-sm font-medium text-slate-900 leading-relaxed">
-                  {explainResult.summary}
-                </p>
-                <p className="text-xs text-slate-700 leading-relaxed">{explainResult.reasoning}</p>
-
-                <div>
-                  <div className="text-xs font-semibold text-slate-900 mb-1.5">
-                    Practical Recommendations
-                  </div>
-                  <ul className="space-y-1 text-xs text-slate-700 list-disc list-inside">
-                    {explainResult.practicalActions.map((act, i) => (
-                      <li key={i}>{act}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <p className="text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                  <strong>Limitation & Context:</strong> {explainResult.uncertaintyDisclosure}
-                </p>
-
-                {explainResult.followUpQuestions.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {explainResult.followUpQuestions.map((fq) => (
-                      <button
-                        key={fq}
-                        type="button"
-                        onClick={() => runExplainMyAir(fq)}
-                        className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg hover:border-teal-500 text-slate-700"
-                      >
-                        {fq}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ExplainAirPanel
+            snapshot={snapshot}
+            prefs={prefs}
+            homeProfile={homeProfile}
+            sustainabilityGoals={sustainabilityGoals}
+            exposureLogs={exposureLogs}
+            geminiConfigured={geminiConfigured}
+          />
         )}
       </div>
     </div>

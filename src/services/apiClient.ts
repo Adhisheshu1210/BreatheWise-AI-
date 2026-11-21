@@ -90,32 +90,40 @@ async function fetchWithTimeout(
   }
 }
 
-async function parseJsonResponse<T>(res: Response): Promise<T> {
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+async function parseJsonRecord(res: Response): Promise<Record<string, unknown>> {
   const rawText = await res.text().catch(() => '');
-  let parsed: (T & { error?: string; message?: string }) | null = null;
+  let parsed: unknown = null;
   if (rawText) {
     try {
-      parsed = JSON.parse(rawText) as T & { error?: string; message?: string };
+      parsed = JSON.parse(rawText);
     } catch {
       parsed = null;
     }
   }
 
+  const record = isPlainRecord(parsed) ? parsed : null;
+
   if (!res.ok) {
-    throw new ApiClientError(
-      parsed?.error ?? 'REQUEST_FAILED',
-      parsed?.message ?? `Request failed (${res.status})`,
-      res.status
-    );
+    const errorCode =
+      record && typeof record.error === 'string' ? record.error : 'REQUEST_FAILED';
+    const errorMessage =
+      record && typeof record.message === 'string'
+        ? record.message
+        : `Request failed (${res.status})`;
+    throw new ApiClientError(errorCode, errorMessage, res.status);
   }
-  if (!parsed || typeof parsed !== 'object') {
+  if (!record) {
     throw new ApiClientError(
       'INVALID_RESPONSE',
       'Server returned an invalid or empty response.',
       res.status || 502
     );
   }
-  return parsed;
+  return record;
 }
 
 export async function fetchServerHealth(): Promise<{
@@ -124,7 +132,12 @@ export async function fetchServerHealth(): Promise<{
   geminiConfigured: boolean;
 }> {
   const res = await fetchWithTimeout('/api/health', { timeoutMs: 8000 });
-  return parseJsonResponse(res);
+  const data = await parseJsonRecord(res);
+  return {
+    ok: Boolean(data.ok),
+    provider: typeof data.provider === 'string' ? data.provider : 'Open-Meteo',
+    geminiConfigured: Boolean(data.geminiConfigured),
+  };
 }
 
 export async function searchLocationsApi(
@@ -135,11 +148,11 @@ export async function searchLocationsApi(
     signal,
     timeoutMs: 12000,
   });
-  const data = await parseJsonResponse<{ results?: LocationResult[] }>(res);
+  const data = await parseJsonRecord(res);
   if (!Array.isArray(data.results)) {
     throw new ApiClientError('INVALID_RESPONSE', 'Location search returned an invalid payload.', 502);
   }
-  return data.results;
+  return data.results as LocationResult[];
 }
 
 export async function fetchAirQualityApi(
@@ -158,15 +171,15 @@ export async function fetchAirQualityApi(
     signal,
     timeoutMs,
   });
-  const data = await parseJsonResponse<{ snapshot?: AirQualitySnapshot }>(res);
-  if (!data.snapshot || typeof data.snapshot !== 'object') {
+  const data = await parseJsonRecord(res);
+  if (!isPlainRecord(data.snapshot)) {
     throw new ApiClientError(
       'INVALID_RESPONSE',
       'Air quality service returned an incomplete snapshot.',
       502
     );
   }
-  return data.snapshot;
+  return data.snapshot as unknown as AirQualitySnapshot;
 }
 
 export async function fetchRegionalGridApi(
@@ -184,7 +197,7 @@ export async function fetchRegionalGridApi(
     signal,
     timeoutMs: 15000,
   });
-  const data = await parseJsonResponse<{ stations?: GridStationPoint[] }>(res);
+  const data = await parseJsonRecord(res);
   if (!Array.isArray(data.stations)) {
     throw new ApiClientError(
       'INVALID_RESPONSE',
@@ -192,7 +205,7 @@ export async function fetchRegionalGridApi(
       502
     );
   }
-  return data.stations;
+  return data.stations as GridStationPoint[];
 }
 
 export function buildAiContextPayload(params: {
@@ -311,7 +324,7 @@ export async function sendChatMessageApi(params: {
     body: JSON.stringify(params),
     timeoutMs: 50000,
   });
-  const data = await parseJsonResponse<{ reply?: unknown }>(res);
+  const data = await parseJsonRecord(res);
   if (typeof data.reply !== 'string' || !data.reply.trim()) {
     throw new ApiClientError('AI_INVALID_RESPONSE', 'AI returned an empty reply.', 502);
   }
@@ -352,8 +365,8 @@ export async function requestStructuredAiApi<T>(params: {
       }),
       timeoutMs: 50000,
     });
-    const parsed = await parseJsonResponse<{ data?: T }>(res);
-    if (!parsed.data || typeof parsed.data !== 'object' || Array.isArray(parsed.data)) {
+    const parsed = await parseJsonRecord(res);
+    if (!isPlainRecord(parsed.data)) {
       throw new ApiClientError(
         'AI_INVALID_RESPONSE',
         'AI recommendation response was incomplete.',
@@ -368,7 +381,7 @@ export async function requestStructuredAiApi<T>(params: {
       expiresAt: Date.now() + AI_CACHE_TTL_MS,
       data: parsed.data,
     });
-    return parsed.data;
+    return parsed.data as T;
   })();
 
   aiInflightRequests.set(cacheKey, requestPromise);

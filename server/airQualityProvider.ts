@@ -153,6 +153,7 @@ interface OpenMeteoGeocodingResponse {
 }
 
 interface OpenMeteoAirResponse {
+  error?: unknown;
   latitude: number;
   longitude: number;
   timezone?: string;
@@ -206,6 +207,149 @@ function buildIllustrative30dSample(baseAqi: number, basePm25: number, basePm10:
     });
   }
   return points;
+}
+
+export function normalizeOpenMeteoTimestamp(rawTime: unknown): number | null {
+  if (typeof rawTime !== 'string' || !rawTime.trim()) return null;
+  const trimmed = rawTime.trim();
+  const normalized = trimmed.endsWith('Z')
+    ? trimmed
+    : trimmed.length === 16
+    ? `${trimmed}:00Z`
+    : `${trimmed}Z`;
+  const ts = Date.parse(normalized);
+  return Number.isNaN(ts) ? null : ts;
+}
+
+export function parseOpenMeteoTrends(
+  hourly: OpenMeteoAirResponse['hourly'],
+  nowMs: number = Date.now()
+): { hourly24h: TrendPoint[]; daily7d: TrendPoint[] } {
+  const hourlyTimes = Array.isArray(hourly?.time) ? hourly.time : [];
+  const allHourly: TrendPoint[] = [];
+
+  for (let i = 0; i < hourlyTimes.length; i++) {
+    const ts = normalizeOpenMeteoTimestamp(hourlyTimes[i]);
+    if (ts === null || ts > nowMs + 30 * 60 * 1000) continue;
+    const dt = new Date(ts);
+    allHourly.push({
+      timestamp: dt.toISOString(),
+      label: dt.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
+      usAqi: asNonNegNumber(hourly?.us_aqi?.[i]),
+      eaqi: asNonNegNumber(hourly?.european_aqi?.[i]),
+      pm2_5: asNonNegNumber(hourly?.pm2_5?.[i]),
+      pm10: asNonNegNumber(hourly?.pm10?.[i]),
+      no2: asNonNegNumber(hourly?.nitrogen_dioxide?.[i]),
+      o3: asNonNegNumber(hourly?.ozone?.[i]),
+    });
+  }
+
+  const hourly24h = allHourly.slice(-24);
+  const dayMap = new Map<string, TrendPoint[]>();
+  for (const pt of allHourly) {
+    const dayKey = pt.timestamp.slice(0, 10);
+    const list = dayMap.get(dayKey) ?? [];
+    list.push(pt);
+    dayMap.set(dayKey, list);
+  }
+
+  const avgOrNull = (vals: Array<number | null>): number | null => {
+    const valid = vals.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    if (valid.length === 0) return null;
+    return Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 10) / 10;
+  };
+
+  const daily7d: TrendPoint[] = Array.from(dayMap.entries())
+    .slice(-7)
+    .map(([dayKey, pts]) => {
+      const dt = new Date(`${dayKey}T12:00:00Z`);
+      const avgUs = avgOrNull(pts.map((p) => p.usAqi));
+      const avgEa = avgOrNull(pts.map((p) => p.eaqi));
+      return {
+        timestamp: dt.toISOString(),
+        label: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        usAqi: avgUs !== null ? Math.round(avgUs) : null,
+        eaqi: avgEa !== null ? Math.round(avgEa) : null,
+        pm2_5: avgOrNull(pts.map((p) => p.pm2_5)),
+        pm10: avgOrNull(pts.map((p) => p.pm10)),
+        no2: avgOrNull(pts.map((p) => p.no2)),
+        o3: avgOrNull(pts.map((p) => p.o3)),
+      };
+    });
+
+  return { hourly24h, daily7d };
+}
+
+function parseWeatherResult(
+  weatherResult: PromiseSettledResult<OpenMeteoWeatherResponse>
+): AirQualitySnapshot['weather'] {
+  if (weatherResult.status !== 'fulfilled' || !weatherResult.value?.current) {
+    return {
+      temperatureC: null,
+      humidityPercent: null,
+      windSpeedKmh: null,
+      surfacePressureHpa: null,
+      observedAt: null,
+    };
+  }
+  const c = weatherResult.value.current;
+  return {
+    temperatureC: asFiniteNumber(c.temperature_2m),
+    humidityPercent: asNonNegNumber(c.relative_humidity_2m),
+    windSpeedKmh: asNonNegNumber(c.wind_speed_10m),
+    surfacePressureHpa: asNonNegNumber(c.surface_pressure),
+    observedAt: typeof c.time === 'string' ? c.time : null,
+  };
+}
+
+interface GridOffsetSpec {
+  dir: string;
+  label: string;
+  dLat: number;
+  dLon: number;
+  km: number;
+}
+
+function parseGridStationPoint(
+  item: OpenMeteoAirResponse | undefined,
+  offset: GridOffsetSpec,
+  lat: number,
+  lon: number,
+  idx: number
+): GridStationPoint {
+  const c = item?.current;
+  const rawPm25 = asNonNegNumber(c?.pm2_5);
+  const rawPm10 = asNonNegNumber(c?.pm10);
+  const rawNo2 = asNonNegNumber(c?.nitrogen_dioxide);
+  const rawUsAqi = asNonNegNumber(c?.us_aqi);
+  const rawEaqi = asNonNegNumber(c?.european_aqi);
+
+  const pm25 = rawPm25 !== null ? Math.round(rawPm25 * 10) / 10 : null;
+  const pm10 = rawPm10 !== null ? Math.round(rawPm10 * 10) / 10 : null;
+  const no2 = rawNo2 !== null ? Math.round(rawNo2 * 10) / 10 : null;
+  const usAqi =
+    rawUsAqi !== null
+      ? Math.round(rawUsAqi)
+      : pm25 !== null
+      ? calculateUsAqiFromPm25(pm25)
+      : null;
+  const eaqi = rawEaqi !== null ? Math.round(rawEaqi) : null;
+
+  const readings = buildPollutantReadings({ pm2_5: pm25, pm10, no2 });
+  return {
+    id: `grid-${idx}`,
+    label: offset.label,
+    direction: offset.dir,
+    distanceKm: offset.km,
+    latitude: Math.round((lat + offset.dLat) * 1000) / 1000,
+    longitude: Math.round((lon + offset.dLon) * 1000) / 1000,
+    usAqi,
+    eaqi,
+    pm2_5: pm25,
+    pm10,
+    no2,
+    dominantPollutant: determinePrimaryPollutant(readings),
+  };
 }
 
 export class OpenMeteoProvider implements AirQualityProvider {
@@ -287,7 +431,7 @@ export class OpenMeteoProvider implements AirQualityProvider {
       throw aqData.reason;
     }
 
-    const aq = aqData.value as OpenMeteoAirResponse & { error?: unknown };
+    const aq = aqData.value;
     if (
       !aq ||
       typeof aq !== 'object' ||
@@ -302,25 +446,7 @@ export class OpenMeteoProvider implements AirQualityProvider {
     }
 
     const current = aq.current ?? { time: '' };
-    const weather =
-      weatherResult.status === 'fulfilled' && weatherResult.value?.current
-        ? {
-            temperatureC: asFiniteNumber(weatherResult.value.current.temperature_2m),
-            humidityPercent: asNonNegNumber(weatherResult.value.current.relative_humidity_2m),
-            windSpeedKmh: asNonNegNumber(weatherResult.value.current.wind_speed_10m),
-            surfacePressureHpa: asNonNegNumber(weatherResult.value.current.surface_pressure),
-            observedAt:
-              typeof weatherResult.value.current.time === 'string'
-                ? weatherResult.value.current.time
-                : null,
-          }
-        : {
-            temperatureC: null,
-            humidityPercent: null,
-            windSpeedKmh: null,
-            surfacePressureHpa: null,
-            observedAt: null,
-          };
+    const weather = parseWeatherResult(weatherResult);
 
     const pollutants = buildPollutantReadings({
       pm2_5: current.pm2_5,
@@ -343,79 +469,17 @@ export class OpenMeteoProvider implements AirQualityProvider {
     const rawEaqi = asNonNegNumber(current.european_aqi);
     const eaqi = rawEaqi !== null ? Math.round(rawEaqi) : null;
 
-    // Parse hourly series up to current hour for real past 24h & 7d daily averages
-    const nowMs = Date.now();
-    const hourlyTimes = Array.isArray(aq.hourly?.time) ? aq.hourly.time : [];
-    const allHourly: TrendPoint[] = [];
+    const { hourly24h, daily7d } = parseOpenMeteoTrends(aq.hourly, Date.now());
 
-    for (let i = 0; i < hourlyTimes.length; i++) {
-      const rawTime = hourlyTimes[i];
-      if (typeof rawTime !== 'string' || !rawTime.trim()) continue;
-      const normalized = rawTime.endsWith('Z')
-        ? rawTime
-        : rawTime.length === 16
-        ? `${rawTime}:00Z`
-        : `${rawTime}Z`;
-      const ts = Date.parse(normalized);
-      if (Number.isNaN(ts) || ts > nowMs + 30 * 60 * 1000) continue;
-      const dt = new Date(ts);
-      allHourly.push({
-        timestamp: dt.toISOString(),
-        label: dt.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
-        usAqi: asNonNegNumber(aq.hourly?.us_aqi?.[i]),
-        eaqi: asNonNegNumber(aq.hourly?.european_aqi?.[i]),
-        pm2_5: asNonNegNumber(aq.hourly?.pm2_5?.[i]),
-        pm10: asNonNegNumber(aq.hourly?.pm10?.[i]),
-        no2: asNonNegNumber(aq.hourly?.nitrogen_dioxide?.[i]),
-        o3: asNonNegNumber(aq.hourly?.ozone?.[i]),
-      });
-    }
-
-    const hourly24h = allHourly.slice(-24);
-
-    // Aggregate into daily buckets for 7-day real history
-    const dayMap = new Map<string, TrendPoint[]>();
-    for (const pt of allHourly) {
-      const dayKey = pt.timestamp.slice(0, 10);
-      const list = dayMap.get(dayKey) ?? [];
-      list.push(pt);
-      dayMap.set(dayKey, list);
-    }
-
-    const avgOrNull = (vals: Array<number | null>): number | null => {
-      const valid = vals.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
-      if (valid.length === 0) return null;
-      return Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 10) / 10;
-    };
-
-    const daily7d: TrendPoint[] = Array.from(dayMap.entries())
-      .slice(-7)
-      .map(([dayKey, pts]) => {
-        const dt = new Date(`${dayKey}T12:00:00Z`);
-        const avgUs = avgOrNull(pts.map((p) => p.usAqi));
-        const avgEa = avgOrNull(pts.map((p) => p.eaqi));
-        return {
-          timestamp: dt.toISOString(),
-          label: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          usAqi: avgUs !== null ? Math.round(avgUs) : null,
-          eaqi: avgEa !== null ? Math.round(avgEa) : null,
-          pm2_5: avgOrNull(pts.map((p) => p.pm2_5)),
-          pm10: avgOrNull(pts.map((p) => p.pm10)),
-          no2: avgOrNull(pts.map((p) => p.no2)),
-          o3: avgOrNull(pts.map((p) => p.o3)),
-        };
-      });
-
-    const parsedCurrentTime =
-      typeof current.time === 'string' && current.time.trim()
-        ? Date.parse(current.time.endsWith('Z') ? current.time : `${current.time}Z`)
-        : NaN;
-    const lastUpdatedIso = !Number.isNaN(parsedCurrentTime)
-      ? new Date(parsedCurrentTime).toISOString()
-      : new Date().toISOString();
-    const freshness = !Number.isNaN(parsedCurrentTime)
-      ? computeFreshness(lastUpdatedIso, false)
-      : { status: 'aging' as const, label: 'Timestamp unavailable' };
+    const parsedCurrentTs = normalizeOpenMeteoTimestamp(current.time);
+    const lastUpdatedIso =
+      parsedCurrentTs !== null
+        ? new Date(parsedCurrentTs).toISOString()
+        : new Date().toISOString();
+    const freshness: { status: AirQualitySnapshot['freshnessStatus']; label: string } =
+      parsedCurrentTs !== null
+        ? computeFreshness(lastUpdatedIso, false)
+        : { status: 'aging', label: 'Timestamp unavailable' };
 
     const basePm25 = rawPm25 ?? 22;
     const basePm10 = asNonNegNumber(current.pm10) ?? 38;
@@ -464,7 +528,7 @@ export class OpenMeteoProvider implements AirQualityProvider {
       return cached;
     }
 
-    const offsets = [
+    const offsets: GridOffsetSpec[] = [
       { dir: 'Center', label: `${centerLabel} Central`, dLat: 0, dLon: 0, km: 0 },
       { dir: 'N', label: 'North Sector', dLat: 0.12, dLon: 0, km: 13 },
       { dir: 'NE', label: 'Northeast Corridor', dLat: 0.09, dLon: 0.1, km: 13 },
@@ -502,42 +566,9 @@ export class OpenMeteoProvider implements AirQualityProvider {
       );
     }
 
-    const points: GridStationPoint[] = offsets.map((o, idx) => {
-      const item = list[idx] ?? list[0];
-      const c = item?.current;
-      const rawPm25 = asNonNegNumber(c?.pm2_5);
-      const rawPm10 = asNonNegNumber(c?.pm10);
-      const rawNo2 = asNonNegNumber(c?.nitrogen_dioxide);
-      const rawUsAqi = asNonNegNumber(c?.us_aqi);
-      const rawEaqi = asNonNegNumber(c?.european_aqi);
-
-      const pm25 = rawPm25 !== null ? Math.round(rawPm25 * 10) / 10 : null;
-      const pm10 = rawPm10 !== null ? Math.round(rawPm10 * 10) / 10 : null;
-      const no2 = rawNo2 !== null ? Math.round(rawNo2 * 10) / 10 : null;
-      const usAqi =
-        rawUsAqi !== null
-          ? Math.round(rawUsAqi)
-          : pm25 !== null
-          ? calculateUsAqiFromPm25(pm25)
-          : null;
-      const eaqi = rawEaqi !== null ? Math.round(rawEaqi) : null;
-
-      const readings = buildPollutantReadings({ pm2_5: pm25, pm10, no2 });
-      return {
-        id: `grid-${idx}`,
-        label: o.label,
-        direction: o.dir,
-        distanceKm: o.km,
-        latitude: Math.round((lat + o.dLat) * 1000) / 1000,
-        longitude: Math.round((lon + o.dLon) * 1000) / 1000,
-        usAqi,
-        eaqi,
-        pm2_5: pm25,
-        pm10,
-        no2,
-        dominantPollutant: determinePrimaryPollutant(readings),
-      };
-    });
+    const points: GridStationPoint[] = offsets.map((offset, idx) =>
+      parseGridStationPoint(list[idx] ?? list[0], offset, lat, lon, idx)
+    );
 
     if (points.every((pt) => pt.usAqi === null && pt.pm2_5 === null && pt.pm10 === null)) {
       throw new ProviderError(

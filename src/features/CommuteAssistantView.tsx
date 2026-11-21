@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Info, Loader2, Navigation2, Sparkles } from 'lucide-react';
 import { AiErrorBanner } from '../components/UiFeedback.tsx';
+import { useAsyncAction } from '../hooks/useAsyncAction.ts';
 import {
   buildAiContextPayload,
   buildDemoCommuteAi,
@@ -14,7 +15,15 @@ import type {
   UserPreferences,
 } from '../types/airQuality.ts';
 import { getActiveAqiValue, getAqiCategory } from '../utils/aqi.ts';
-import { validateCommuteInput } from '../utils/validation.ts';
+import {
+  calculateCommuteComparison,
+  COMMUTE_MODE_VALUES,
+  COMMUTE_TRAVEL_WINDOW_VALUES,
+  type CommuteMode,
+  type CommuteTravelWindow,
+  getCommuteTimingAdvice,
+} from '../utils/commute.ts';
+import { parseOptionValue, validateCommuteInput } from '../utils/validation.ts';
 
 interface CommuteAssistantViewProps {
   snapshot: AirQualitySnapshot | null;
@@ -23,9 +32,6 @@ interface CommuteAssistantViewProps {
   homeProfile?: IndoorHomeProfile;
   geminiConfigured: boolean;
 }
-
-type Mode = 'walking' | 'cycling' | 'public_transit' | 'carpool' | 'private_car';
-type TravelTime = 'early_morning' | 'morning_rush' | 'midday' | 'evening_rush' | 'night';
 
 export function CommuteAssistantView({
   snapshot,
@@ -37,90 +43,44 @@ export function CommuteAssistantView({
   const [origin, setOrigin] = useState('Home Neighborhood');
   const [destination, setDestination] = useState('Workplace / School Campus');
   const [distanceKm, setDistanceKm] = useState<number>(6);
-  const [mode, setMode] = useState<Mode>('public_transit');
-  const [travelTime, setTravelTime] = useState<TravelTime>('morning_rush');
+  const [mode, setMode] = useState<CommuteMode>('public_transit');
+  const [travelTime, setTravelTime] = useState<CommuteTravelWindow>('morning_rush');
   const [preferQuietStreets, setPreferQuietStreets] = useState(true);
   const [commuteAi, setCommuteAi] = useState<CommuteAiResult | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const aiAction = useAsyncAction('Unable to personalize commute strategy right now.');
 
   const aqi = snapshot ? getActiveAqiValue(snapshot, aqiStandard) : null;
   const cat = aqi !== null ? getAqiCategory(aqi, aqiStandard) : null;
   const isHighAqi = snapshot && snapshot.currentUsAqi !== null ? snapshot.currentUsAqi > 150 : false;
   const validation = validateCommuteInput({ origin, destination, distanceKm });
-  const safeDistanceKm =
-    Number.isFinite(distanceKm) && distanceKm >= 0.5 && distanceKm <= 100 ? distanceKm : 1;
 
-  const comparison = useMemo(() => {
-    const rushMultiplier =
-      travelTime === 'morning_rush' || travelTime === 'evening_rush' ? 1.25 : 1.0;
+  const comparison = useMemo(
+    () =>
+      calculateCommuteComparison({
+        distanceKm,
+        mode,
+        travelTime,
+        hasSnapshot: Boolean(snapshot),
+        isHighAqi,
+      }),
+    [distanceKm, mode, travelTime, isHighAqi, snapshot]
+  );
 
-    const mainRoadTimeMin =
-      mode === 'walking'
-        ? Math.round(safeDistanceKm * 12)
-        : mode === 'cycling'
-        ? Math.round(safeDistanceKm * 4)
-        : mode === 'public_transit'
-        ? Math.round(safeDistanceKm * 3.2 + 8)
-        : Math.round(safeDistanceKm * 2.8 * rushMultiplier);
-
-    const quietStreetTimeMin =
-      mode === 'walking' || mode === 'cycling'
-        ? Math.round(mainRoadTimeMin * 1.12)
-        : Math.round(mainRoadTimeMin * 1.08);
-
-    const arterialExposure = !snapshot
-      ? 'Select a city or Demo Mode to pair roadside exposure with live/demo AQI'
-      : mode === 'walking' || mode === 'cycling'
-      ? isHighAqi
-        ? 'High (unfiltered roadside breathing + heavy exhaust proximity)'
-        : 'Moderate-Elevated (close to arterial tailpipe emissions)'
-      : 'Moderate (cabin air mixes with heavy road exhaust)';
-
-    const quietExposure = !snapshot
-      ? 'Quiet side streets generally reduce direct diesel exhaust proximity'
-      : mode === 'walking' || mode === 'cycling'
-      ? isHighAqi
-        ? 'Elevated (quieter streets reduce tailpipe NO₂, though ambient PM2.5 remains high)'
-        : 'Lower relative roadside exposure (set back from diesel traffic)'
-      : 'Lower relative exposure (reduces stop-and-go exhaust queuing)';
-
-    const transitExposure = !snapshot
-      ? 'Lower per-passenger emissions; select a city for ambient mask guidance'
-      : isHighAqi
-      ? 'Moderate (enclosed transit reduces windborne dust; wear N95/FFP2 during platform walks)'
-      : 'Lower personal exposure & lower per-passenger emissions';
-
-    const carCo2Range: [number, number] = [
-      Math.round(safeDistanceKm * 0.16 * 10) / 10,
-      Math.round(safeDistanceKm * 0.22 * 10) / 10,
-    ];
-    const transitCo2Range: [number, number] = [
-      Math.round(safeDistanceKm * 0.04 * 10) / 10,
-      Math.round(safeDistanceKm * 0.09 * 10) / 10,
-    ];
-
-    return {
-      mainRoadTimeMin,
-      quietStreetTimeMin,
-      arterialExposure,
-      quietExposure,
-      transitExposure,
-      carCo2Range,
-      transitCo2Range,
-    };
-  }, [safeDistanceKm, mode, travelTime, isHighAqi, snapshot]);
+  const timingAdvice = useMemo(
+    () => getCommuteTimingAdvice({ isHighAqi, travelTime, snapshot }),
+    [isHighAqi, travelTime, snapshot]
+  );
 
   const handleGenerateCommuteAi = async (forceRefresh = false) => {
     if (!validation.valid || !validation.value) return;
-    setAiError(null);
+    aiAction.clearError();
 
     if (prefs.demoMode || !geminiConfigured || !snapshot) {
       setCommuteAi(
         buildDemoCommuteAi({
           origin: origin.trim(),
           destination: destination.trim(),
-          distanceKm: safeDistanceKm,
+          distanceKm: comparison.safeDistanceKm,
           mode,
           travelTime,
           snapshot,
@@ -130,20 +90,19 @@ export function CommuteAssistantView({
       return;
     }
 
-    setAiLoading(true);
-    try {
+    const res = await aiAction.run(async () => {
       const ctx = buildAiContextPayload({
         snapshot,
         prefs,
         indoorProfile: homeProfile,
       });
-      const res = await requestStructuredAiApi<CommuteAiResult>({
+      return requestStructuredAiApi<CommuteAiResult>({
         taskType: 'commute-advice',
         context: ctx,
         payload: {
           origin: origin.trim(),
           destination: destination.trim(),
-          distanceKm: safeDistanceKm,
+          distanceKm: comparison.safeDistanceKm,
           primaryMode: mode,
           travelWindow: travelTime,
           preferQuietStreets,
@@ -154,13 +113,10 @@ export function CommuteAssistantView({
         },
         forceRefresh,
       });
+    });
+
+    if (res) {
       setCommuteAi({ ...res, isAiGenerated: true });
-    } catch (err) {
-      setAiError(
-        err instanceof Error ? err.message : 'Unable to personalize commute strategy right now.'
-      );
-    } finally {
-      setAiLoading(false);
     }
   };
 
@@ -184,10 +140,10 @@ export function CommuteAssistantView({
           <button
             type="button"
             onClick={() => handleGenerateCommuteAi(false)}
-            disabled={aiLoading || !validation.valid}
+            disabled={aiAction.loading || !validation.valid}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50 whitespace-nowrap self-start md:self-auto"
           >
-            {aiLoading ? (
+            {aiAction.loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Sparkles className="w-4 h-4 text-teal-300" />
@@ -268,7 +224,11 @@ export function CommuteAssistantView({
                 <select
                   id="commute-window"
                   value={travelTime}
-                  onChange={(e) => setTravelTime(e.target.value as TravelTime)}
+                  onChange={(e) =>
+                    setTravelTime(
+                      parseOptionValue(e.target.value, COMMUTE_TRAVEL_WINDOW_VALUES, travelTime)
+                    )
+                  }
                   className="w-full px-2.5 py-2 text-xs border border-slate-300 rounded-lg bg-white"
                 >
                   <option value="early_morning">Early Morning</option>
@@ -286,7 +246,9 @@ export function CommuteAssistantView({
               <select
                 id="commute-mode"
                 value={mode}
-                onChange={(e) => setMode(e.target.value as Mode)}
+                onChange={(e) =>
+                  setMode(parseOptionValue(e.target.value, COMMUTE_MODE_VALUES, mode))
+                }
                 className="w-full px-2.5 py-2 text-xs border border-slate-300 rounded-lg bg-white"
               >
                 <option value="public_transit">Public Transit (Metro / Bus)</option>
@@ -317,7 +279,7 @@ export function CommuteAssistantView({
               <Navigation2 className="w-4 h-4 text-teal-700" />
               <span>
                 Comparing options from <strong>{origin.trim() || 'Origin'}</strong> to{' '}
-                <strong>{destination.trim() || 'Destination'}</strong> ({safeDistanceKm} km est.)
+                <strong>{destination.trim() || 'Destination'}</strong> ({comparison.safeDistanceKm} km est.)
               </span>
             </div>
 
@@ -366,7 +328,7 @@ export function CommuteAssistantView({
                   {isHighAqi ? 'Enclosed Transit + Mask' : 'Shared Transit / Active Mix'}
                 </div>
                 <div className="font-mono tabular-nums text-xl font-bold text-slate-900">
-                  ~{Math.round(safeDistanceKm * 3.2 + 8)} min
+                  ~{comparison.transitTimeMin} min
                 </div>
                 <div className="text-xs text-slate-700">
                   <strong>Exposure:</strong> {comparison.transitExposure}
@@ -383,17 +345,14 @@ export function CommuteAssistantView({
               <div className="font-semibold text-slate-900">
                 Mode & Timing Guidance for {travelTime.replace('_', ' ')}
               </div>
-              <p>
-                {isHighAqi
-                  ? 'Because outdoor AQI is above 150, prolonged outdoor cycling or brisk walking increases breathing volume significantly. Consider enclosed public transit or carpool and wear a well-fitted N95/FFP2 respirator during outdoor segments.'
-                  : travelTime === 'morning_rush' || travelTime === 'evening_rush'
-                  ? 'Rush-hour traffic raises street-level NO₂ and brake/exhaust particles. If using a car, engage cabin air recirculation at congested junctions; if walking, choose parallel tree-lined streets.'
-                  : 'Midday off-peak travel generally encounters lighter traffic queues and stronger atmospheric mixing than rush hours.'}
-              </p>
+              <p>{timingAdvice}</p>
             </div>
 
-            {aiError && (
-              <AiErrorBanner error={aiError} onRetry={() => handleGenerateCommuteAi(true)} />
+            {aiAction.error && (
+              <AiErrorBanner
+                error={aiAction.error}
+                onRetry={() => handleGenerateCommuteAi(true)}
+              />
             )}
 
             {commuteAi && (

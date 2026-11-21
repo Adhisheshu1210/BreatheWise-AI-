@@ -7,6 +7,7 @@ import type {
 } from '../types/airQuality.ts';
 import { getActiveAqiValue } from '../utils/aqi.ts';
 import { downloadJsonFile } from '../utils/exportJson.ts';
+import { classifyExposureEntry, summarizeExposureLogs } from '../utils/exposure.ts';
 import { validateExposureLogInput } from '../utils/validation.ts';
 
 interface ExposureTrackerViewProps {
@@ -69,41 +70,7 @@ export function ExposureTrackerView({
     setLoggedSuccess(true);
   };
 
-  const weeklySummary = useMemo(() => {
-    const totalMinutes = logs.reduce((sum, l) => sum + l.durationMinutes, 0);
-    const highAqiLogs = logs.filter((l) => l.approximateAqi > 150);
-    const maskedCount = logs.filter((l) => l.usedMask).length;
-    const avgAqi =
-      logs.length > 0
-        ? Math.round(logs.reduce((s, l) => s + l.approximateAqi, 0) / logs.length)
-        : 0;
-
-    // Group by time-of-day window to detect high-exposure periods
-    const buckets = {
-      Morning: { mins: 0, aqiSum: 0, count: 0 },
-      Midday: { mins: 0, aqiSum: 0, count: 0 },
-      Evening: { mins: 0, aqiSum: 0, count: 0 },
-    };
-    for (const l of logs) {
-      const hour = Number((l.timeOfDay || '12:00').split(':')[0]);
-      const key = hour < 11 ? 'Morning' : hour < 17 ? 'Midday' : 'Evening';
-      buckets[key].mins += l.durationMinutes;
-      buckets[key].aqiSum += l.approximateAqi;
-      buckets[key].count += 1;
-    }
-    const peakPeriod = (Object.entries(buckets) as Array<[string, { mins: number; aqiSum: number; count: number }]>)
-      .filter(([, b]) => b.count > 0)
-      .sort((a, b) => b[1].aqiSum / b[1].count - a[1].aqiSum / a[1].count)[0];
-
-    const recommendation =
-      highAqiLogs.length > 0 && maskedCount < highAqiLogs.length
-        ? 'You logged outdoor sessions above AQI 150 without a mask. Consider N95/FFP2 protection or shifting workouts indoors on poor-air days.'
-        : peakPeriod && peakPeriod[0] !== 'Midday'
-        ? `Your highest logged AQI averages occur in the ${peakPeriod[0].toLowerCase()}. Shifting non-essential errands toward midday may lower exposure.`
-        : 'Continue pacing outdoor sessions on quieter side streets and monitoring morning AQI updates.';
-
-    return { totalMinutes, highAqiLogs, maskedCount, avgAqi, peakPeriod, recommendation };
-  }, [logs]);
+  const weeklySummary = useMemo(() => summarizeExposureLogs(logs), [logs]);
 
   const handleExportJson = () => {
     downloadJsonFile(
@@ -380,19 +347,7 @@ export function ExposureTrackerView({
                   </h3>
                   <div className="space-y-2.5">
                     {logs.slice(0, 6).map((l) => {
-                      const barWidth = Math.min(100, Math.round((l.durationMinutes / 120) * 100));
-                      const barTone =
-                        l.approximateAqi > 150
-                          ? 'bg-red-600'
-                          : l.approximateAqi > 100
-                          ? 'bg-amber-500'
-                          : 'bg-teal-600';
-                      const riskTag =
-                        l.approximateAqi > 150
-                          ? 'High AQI'
-                          : l.approximateAqi > 100
-                          ? 'Elevated AQI'
-                          : 'Moderate/Good AQI';
+                      const { barWidth, barTone, riskTag } = classifyExposureEntry(l);
                       return (
                         <div key={l.id} className="space-y-1">
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">

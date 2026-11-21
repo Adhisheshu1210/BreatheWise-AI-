@@ -637,3 +637,104 @@ export function summarizeHourlyWindows(
   return `Lowest 24h reading: ${minPt.label} (${minPt.val} ${unitLabel}); Peak 24h reading: ${maxPt.label} (${maxPt.val} ${unitLabel}); Recent trajectory: ${trendNote}.`;
 }
 
+export function calculateEstimatedCo2Range(
+  goals: Array<{ completedCount: number; estimatedCo2RangeKg: [number, number] }>
+): { totalCo2Min: number; totalCo2Max: number } {
+  const min =
+    Math.round(
+      goals.reduce((acc, g) => acc + g.completedCount * g.estimatedCo2RangeKg[0], 0) * 100
+    ) / 100;
+  const max =
+    Math.round(
+      goals.reduce((acc, g) => acc + g.completedCount * g.estimatedCo2RangeKg[1], 0) * 100
+    ) / 100;
+  return { totalCo2Min: min, totalCo2Max: max };
+}
+
+export const DAILY_PLAN_CATEGORIES = [
+  'monitoring',
+  'commute',
+  'exercise',
+  'indoor',
+  'family',
+  'ventilation',
+] as const;
+
+export const DAILY_PLAN_PRIORITIES = ['high', 'medium', 'low'] as const;
+
+export function normalizePlanCategory(raw: unknown): DailyPlanItem['category'] {
+  const s = String(raw ?? '').trim().toLowerCase();
+  const exact = DAILY_PLAN_CATEGORIES.find((c) => c === s);
+  if (exact) return exact;
+  if (s.includes('indoor') || s.includes('home') || s.includes('sleep')) return 'indoor';
+  if (s.includes('ventilat')) return 'ventilation';
+  if (s.includes('commut') || s.includes('transit') || s.includes('travel')) return 'commute';
+  if (s.includes('exercis') || s.includes('fitness') || s.includes('outdoor')) return 'exercise';
+  if (s.includes('famil') || s.includes('child') || s.includes('school')) return 'family';
+  return 'monitoring';
+}
+
+export function normalizePlanPriority(raw: unknown): DailyPlanItem['priority'] {
+  const s = String(raw ?? '').trim().toLowerCase();
+  return DAILY_PLAN_PRIORITIES.find((p) => p === s) ?? 'medium';
+}
+
+export function getSwappedPlanItem(current: DailyPlanItem): DailyPlanItem {
+  const baseTitle = current.title.replace(/ \((?:Timing Shift|Protective Mode)\)$/, '');
+  const altExplanation =
+    'Swapped to your lower-exposure alternative option while preserving your schedule window.';
+  const timingAction =
+    'Shift this activity closer to midday (12:30 PM – 2:30 PM) when morning inversion layers typically ease, or keep duration under 20 minutes.';
+  const protectiveAction =
+    'Complete essential movement along quieter parallel streets away from diesel traffic and wear a snug N95/FFP2 respirator if AQI is elevated.';
+
+  const alternativesPool: Array<{
+    title: string;
+    action: string;
+    alternative: string;
+    explanation: string;
+  }> = [
+    {
+      title: baseTitle,
+      action: current.alternative,
+      alternative: current.action,
+      explanation: altExplanation,
+    },
+    {
+      title: `${baseTitle} (Timing Shift)`,
+      action: timingAction,
+      alternative: 'Keep the activity indoors in a filtered room if local traffic or haze persists.',
+      explanation:
+        'Atmospheric mixing is frequently stronger around early afternoon compared to early morning or late evening.',
+    },
+    {
+      title: `${baseTitle} (Protective Mode)`,
+      action: protectiveAction,
+      alternative: 'Replace outdoor portion with indoor stretching, hydration, and rest.',
+      explanation:
+        'Stepping 1–2 blocks back from main arterial corridors lowers direct tailpipe NO₂ and soot exposure.',
+    },
+  ];
+
+  const currentIdx =
+    current.action === protectiveAction || current.title.endsWith(' (Protective Mode)')
+      ? 2
+      : current.action === timingAction || current.title.endsWith(' (Timing Shift)')
+      ? 1
+      : current.explanation === altExplanation
+      ? 0
+      : -1;
+  const nextIdx = (currentIdx + 1) % alternativesPool.length;
+  const chosen = alternativesPool[nextIdx];
+
+  return {
+    ...current,
+    title: chosen.title,
+    action: chosen.action,
+    alternative: chosen.alternative,
+    explanation: chosen.explanation,
+    completed: false,
+  };
+}
+
+

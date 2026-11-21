@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Check, Info, Leaf, Loader2, Plus, RotateCcw, Sparkles } from 'lucide-react';
 import { AiErrorBanner } from '../components/UiFeedback.tsx';
+import { useAsyncAction } from '../hooks/useAsyncAction.ts';
 import {
   buildAiContextPayload,
   buildDemoSustainabilityAi,
@@ -13,8 +14,13 @@ import type {
   SustainabilityGoal,
   UserPreferences,
 } from '../types/airQuality.ts';
-import { calculateSustainabilityScore } from '../utils/aqi.ts';
-import { validateCustomGoalInput } from '../utils/validation.ts';
+import { calculateEstimatedCo2Range, calculateSustainabilityScore } from '../utils/aqi.ts';
+import {
+  SUSTAINABILITY_CADENCES,
+  SUSTAINABILITY_CATEGORIES,
+  SUSTAINABILITY_DIFFICULTIES,
+} from '../utils/options.ts';
+import { clampNumber, parseOptionValue, validateCustomGoalInput } from '../utils/validation.ts';
 
 interface SustainableLivingViewProps {
   goals: SustainabilityGoal[];
@@ -78,21 +84,13 @@ export function SustainableLivingView({
   const [newTarget, setNewTarget] = useState(3);
   const [formError, setFormError] = useState<string | null>(null);
   const [aiPlan, setAiPlan] = useState<SustainabilityAiResult | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const aiAction = useAsyncAction('Unable to personalize sustainability guidance right now.');
 
   const summary = useMemo(() => calculateSustainabilityScore(goals), [goals]);
-  const { totalCo2Min, totalCo2Max } = useMemo(() => {
-    const min =
-      Math.round(
-        goals.reduce((acc, g) => acc + g.completedCount * g.estimatedCo2RangeKg[0], 0) * 100
-      ) / 100;
-    const max =
-      Math.round(
-        goals.reduce((acc, g) => acc + g.completedCount * g.estimatedCo2RangeKg[1], 0) * 100
-      ) / 100;
-    return { totalCo2Min: min, totalCo2Max: max };
-  }, [goals]);
+  const { totalCo2Min, totalCo2Max } = useMemo(
+    () => calculateEstimatedCo2Range(goals),
+    [goals]
+  );
 
   const filteredGoals = useMemo(
     () => (categoryFilter === 'all' ? goals : goals.filter((g) => g.category === categoryFilter)),
@@ -133,7 +131,7 @@ export function SustainableLivingView({
   };
 
   const handleGenerateHabitPlan = async (forceRefresh = false) => {
-    setAiError(null);
+    aiAction.clearError();
     if (prefs.demoMode || !geminiConfigured || !snapshot) {
       setAiPlan(
         buildDemoSustainabilityAi({
@@ -145,15 +143,14 @@ export function SustainableLivingView({
       return;
     }
 
-    setAiLoading(true);
-    try {
+    const res = await aiAction.run(async () => {
       const ctx = buildAiContextPayload({
         snapshot,
         prefs,
         indoorProfile: homeProfile,
         sustainabilityGoals: goals,
       });
-      const res = await requestStructuredAiApi<SustainabilityAiResult>({
+      return requestStructuredAiApi<SustainabilityAiResult>({
         taskType: 'sustainability-plan',
         context: ctx,
         payload: {
@@ -170,13 +167,10 @@ export function SustainableLivingView({
         },
         forceRefresh,
       });
+    });
+
+    if (res) {
       setAiPlan({ ...res, isAiGenerated: true });
-    } catch (err) {
-      setAiError(
-        err instanceof Error ? err.message : 'Unable to personalize sustainability guidance right now.'
-      );
-    } finally {
-      setAiLoading(false);
     }
   };
 
@@ -197,10 +191,10 @@ export function SustainableLivingView({
             <button
               type="button"
               onClick={() => handleGenerateHabitPlan(false)}
-              disabled={aiLoading}
+              disabled={aiAction.loading}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50"
             >
-              {aiLoading ? (
+              {aiAction.loading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Sparkles className="w-3.5 h-3.5 text-teal-300" />
@@ -272,9 +266,9 @@ export function SustainableLivingView({
           </div>
         </div>
 
-        {aiError && (
+        {aiAction.error && (
           <AiErrorBanner
-            error={aiError}
+            error={aiAction.error}
             onRetry={() => handleGenerateHabitPlan(true)}
             className="mt-4"
           />
@@ -364,7 +358,9 @@ export function SustainableLivingView({
             <select
               id="goal-category"
               value={newCat}
-              onChange={(e) => setNewCat(e.target.value as SustainabilityGoal['category'])}
+              onChange={(e) =>
+                setNewCat(parseOptionValue(e.target.value, SUSTAINABILITY_CATEGORIES, newCat))
+              }
               className="w-full px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white"
             >
               <option value="transportation">Transport</option>
@@ -384,7 +380,9 @@ export function SustainableLivingView({
               id="goal-difficulty"
               value={newDifficulty}
               onChange={(e) =>
-                setNewDifficulty(e.target.value as SustainabilityGoal['difficulty'])
+                setNewDifficulty(
+                  parseOptionValue(e.target.value, SUSTAINABILITY_DIFFICULTIES, newDifficulty)
+                )
               }
               className="w-full px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white"
             >
@@ -400,7 +398,11 @@ export function SustainableLivingView({
             <select
               id="goal-cadence"
               value={newCadence}
-              onChange={(e) => setNewCadence(e.target.value as SustainabilityGoal['cadence'])}
+              onChange={(e) =>
+                setNewCadence(
+                  parseOptionValue(e.target.value, SUSTAINABILITY_CADENCES, newCadence)
+                )
+              }
               className="w-full px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white"
             >
               <option value="weekly">Weekly</option>
@@ -417,7 +419,7 @@ export function SustainableLivingView({
               min={1}
               max={14}
               value={newTarget}
-              onChange={(e) => setNewTarget(Math.max(1, Number(e.target.value) || 1))}
+              onChange={(e) => setNewTarget(clampNumber(Number(e.target.value), 1, 30, 1))}
               className="w-full px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white font-mono"
             />
           </div>

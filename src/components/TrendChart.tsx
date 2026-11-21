@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
-import type { AirQualitySnapshot, AqiStandard, TrendPoint } from '../types/airQuality.ts';
+import type { AirQualitySnapshot, AqiStandard } from '../types/airQuality.ts';
+import {
+  TREND_CHART_DIMENSIONS,
+  buildTrendChartModel,
+  type TrendMetricKey,
+  type TrendRangeKey,
+} from '../utils/trendChart.ts';
 
 interface TrendChartProps {
   snapshot: AirQualitySnapshot;
   aqiStandard: AqiStandard;
 }
 
-type RangeKey = '24h' | '7d' | '30d';
-type MetricKey = 'aqi' | 'pm2_5' | 'pm10';
-
 export function TrendChart({ snapshot, aqiStandard }: TrendChartProps) {
-  const [range, setRange] = useState<RangeKey>('24h');
-  const [metric, setMetric] = useState<MetricKey>('aqi');
+  const [range, setRange] = useState<TrendRangeKey>('24h');
+  const [metric, setMetric] = useState<TrendMetricKey>('aqi');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
@@ -24,91 +27,31 @@ export function TrendChart({ snapshot, aqiStandard }: TrendChartProps) {
     setFocusedIdx(null);
   }, [snapshot.location.id]);
 
-  const series: TrendPoint[] = useMemo(() => {
-    if (range === '24h') return snapshot.hourly24h;
-    if (range === '7d') return snapshot.daily7d;
-    return snapshot.sample30dTrend;
-  }, [range, snapshot]);
+  const model = useMemo(
+    () => buildTrendChartModel({ snapshot, aqiStandard, range, metric }),
+    [snapshot, aqiStandard, range, metric]
+  );
 
-  const isIllustrative30d =
-    range === '30d' && (!snapshot.historical30dAvailable || snapshot.isDemo);
+  const {
+    series,
+    values,
+    numericValues,
+    isIllustrative30d,
+    minVal,
+    maxVal,
+    avgVal,
+    yMin,
+    yMax,
+    metricLabel,
+    unitLabel,
+    coords,
+    pathD,
+    areaD,
+  } = model;
 
-  const values = useMemo(() => {
-    return series.map((pt) => {
-      if (metric === 'pm2_5') return pt.pm2_5;
-      if (metric === 'pm10') return pt.pm10;
-      return aqiStandard === 'eaqi' ? pt.eaqi : pt.usAqi;
-    });
-  }, [series, metric, aqiStandard]);
-
-  const numericValues = values.filter((v): v is number => typeof v === 'number');
-  const minVal = numericValues.length > 0 ? Math.min(...numericValues) : 0;
-  const maxVal = numericValues.length > 0 ? Math.max(...numericValues) : 100;
-  const avgVal =
-    numericValues.length > 0
-      ? Math.round(numericValues.reduce((sum, n) => sum + n, 0) / numericValues.length)
-      : null;
-  const yMin = Math.max(0, Math.floor(minVal * 0.85));
-  const yMax = Math.max(yMin + 10, Math.ceil(maxVal * 1.12));
-
-  const metricLabel =
-    metric === 'pm2_5'
-      ? 'PM2.5 (µg/m³)'
-      : metric === 'pm10'
-      ? 'PM10 (µg/m³)'
-      : aqiStandard === 'eaqi'
-      ? 'European EAQI'
-      : 'US EPA AQI';
-
-  const unitLabel =
-    metric === 'aqi' ? (aqiStandard === 'eaqi' ? 'EAQI' : 'US AQI') : 'µg/m³';
-
-  const chartW = 720;
-  const chartH = 215;
-  const padL = 44;
-  const padR = 16;
-  const padT = 18;
-  const padB = 32;
+  const { chartW, chartH, padL, padR, padT, padB } = TREND_CHART_DIMENSIONS;
   const innerW = chartW - padL - padR;
   const innerH = chartH - padT - padB;
-
-  const coords = useMemo(() => {
-    return values.map((val, idx) => {
-      const x =
-        series.length <= 1
-          ? padL + innerW / 2
-          : padL + (idx / (series.length - 1)) * innerW;
-      const y =
-        val === null
-          ? null
-          : padT + innerH - ((val - yMin) / (yMax - yMin)) * innerH;
-      return { x, y, val, label: series[idx]?.label ?? '' };
-    });
-  }, [values, series, innerW, innerH, yMin, yMax]);
-
-  const pathD = useMemo(() => {
-    let d = '';
-    let started = false;
-    for (const pt of coords) {
-      if (pt.y === null) {
-        started = false;
-        continue;
-      }
-      d += `${started ? 'L' : 'M'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `;
-      started = true;
-    }
-    return d.trim();
-  }, [coords]);
-
-  const areaD = useMemo(() => {
-    const valid = coords.filter((c) => c.y !== null);
-    if (valid.length < 2) return '';
-    const first = valid[0];
-    const last = valid[valid.length - 1];
-    return `${pathD} L ${last.x.toFixed(1)} ${(padT + innerH).toFixed(1)} L ${first.x.toFixed(
-      1
-    )} ${(padT + innerH).toFixed(1)} Z`;
-  }, [coords, pathD, innerH]);
 
   const hoveredIdx = activeIdx !== null ? activeIdx : Math.max(0, coords.length - 1);
   const hovered = coords[hoveredIdx];
@@ -229,7 +172,6 @@ export function TrendChart({ snapshot, aqiStandard }: TrendChartProps) {
         </div>
       ) : (
         <>
-          {/* Compact range statistics bar */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50 border border-slate-200/80 rounded-lg px-3.5 py-2.5">
             <div className="flex flex-wrap items-center gap-4 text-slate-600">
               <span>

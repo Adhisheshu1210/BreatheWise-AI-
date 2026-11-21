@@ -7,6 +7,8 @@ import type {
   LocationResult,
   UserPreferences,
 } from '../types/airQuality.ts';
+import { SCHEDULE_COMMUTE_MODES, SCHEDULE_EXERCISES } from '../utils/options.ts';
+import { parseOptionValue } from '../utils/validation.ts';
 
 interface OnboardingFlowProps {
   initialPrefs: UserPreferences;
@@ -329,7 +331,11 @@ export function OnboardingFlow({
                     onChange={(e) =>
                       setSchedule({
                         ...schedule,
-                        commuteMode: e.target.value as UserPreferences['schedule']['commuteMode'],
+                        commuteMode: parseOptionValue(
+                          e.target.value,
+                          SCHEDULE_COMMUTE_MODES,
+                          schedule.commuteMode
+                        ),
                       })
                     }
                     className="w-full px-3 py-2 min-h-[42px] text-sm border border-slate-300 rounded-lg bg-white"
@@ -352,7 +358,11 @@ export function OnboardingFlow({
                     onChange={(e) =>
                       setSchedule({
                         ...schedule,
-                        preferredExercise: e.target.value as UserPreferences['schedule']['preferredExercise'],
+                        preferredExercise: parseOptionValue(
+                          e.target.value,
+                          SCHEDULE_EXERCISES,
+                          schedule.preferredExercise
+                        ),
                       })
                     }
                     className="w-full px-3 py-2 min-h-[42px] text-sm border border-slate-300 rounded-lg bg-white"

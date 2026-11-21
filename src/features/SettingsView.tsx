@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Download, RotateCcw, Shield, Trash2 } from 'lucide-react';
 import type { UserPreferences } from '../types/airQuality.ts';
+import { AQI_STANDARDS, LIFESTYLE_ROLES } from '../utils/options.ts';
+import { parseOptionValue } from '../utils/validation.ts';
 
 interface SettingsViewProps {
   prefs: UserPreferences;
@@ -47,7 +49,7 @@ export function SettingsView({
                 onChange={(e) =>
                   onUpdatePrefs({
                     ...prefs,
-                    aqiStandard: e.target.value as UserPreferences['aqiStandard'],
+                    aqiStandard: parseOptionValue(e.target.value, AQI_STANDARDS, prefs.aqiStandard),
                   })
                 }
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
@@ -90,7 +92,11 @@ export function SettingsView({
                 onChange={(e) =>
                   onUpdatePrefs({
                     ...prefs,
-                    lifestyleRole: e.target.value as UserPreferences['lifestyleRole'],
+                    lifestyleRole: parseOptionValue(
+                      e.target.value,
+                      LIFESTYLE_ROLES,
+                      prefs.lifestyleRole
+                    ),
                   })
                 }
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"

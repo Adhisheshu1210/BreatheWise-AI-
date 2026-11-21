@@ -5,6 +5,7 @@ import {
   evaluateActivityGuidance,
   OUTDOOR_ACTIVITIES,
 } from '../data/educationContent.ts';
+import { useAsyncAction } from '../hooks/useAsyncAction.ts';
 import {
   buildAiContextPayload,
   buildDemoOutdoorActivityAi,
@@ -41,8 +42,9 @@ export function OutdoorActivityPanel({
 }: OutdoorActivityPanelProps) {
   const [selectedActivityId, setSelectedActivityId] = useState(OUTDOOR_ACTIVITIES[0].id);
   const [activityAiMap, setActivityAiMap] = useState<Record<string, OutdoorActivityAiResult>>({});
-  const [activityAiLoading, setActivityAiLoading] = useState(false);
-  const [activityAiError, setActivityAiError] = useState<string | null>(null);
+  const activityAction = useAsyncAction(
+    'Unable to personalize outdoor activity decision right now.'
+  );
 
   const selectedActivity =
     OUTDOOR_ACTIVITIES.find((a) => a.id === selectedActivityId) ?? OUTDOOR_ACTIVITIES[0];
@@ -55,24 +57,24 @@ export function OutdoorActivityPanel({
 
   const handleGenerateActivityAi = async (forceRefresh = false) => {
     if (!snapshot) return;
-    setActivityAiError(null);
+    activityAction.clearError();
+    const targetActivity = selectedActivity;
 
     if (prefs.demoMode || !geminiConfigured) {
       const demo = buildDemoOutdoorActivityAi({
-        activityName: selectedActivity.name,
-        intensity: selectedActivity.intensity,
-        indoorAltTitle: selectedActivity.indoorAlternativeTitle,
-        indoorAltDetails: selectedActivity.indoorAlternativeDetails,
+        activityName: targetActivity.name,
+        intensity: targetActivity.intensity,
+        indoorAltTitle: targetActivity.indoorAlternativeTitle,
+        indoorAltDetails: targetActivity.indoorAlternativeDetails,
         riskLevel: activityEval.riskLevel,
         snapshot,
         standard: prefs.aqiStandard,
       });
-      setActivityAiMap((prev) => ({ ...prev, [selectedActivity.id]: demo }));
+      setActivityAiMap((prev) => ({ ...prev, [targetActivity.id]: demo }));
       return;
     }
 
-    setActivityAiLoading(true);
-    try {
+    const res = await activityAction.run(async () => {
       const ctx = buildAiContextPayload({
         snapshot,
         prefs,
@@ -80,31 +82,26 @@ export function OutdoorActivityPanel({
         sustainabilityGoals,
         exposureLogs,
       });
-      const res = await requestStructuredAiApi<OutdoorActivityAiResult>({
+      return requestStructuredAiApi<OutdoorActivityAiResult>({
         taskType: 'outdoor-activity',
         context: ctx,
         payload: {
-          activityName: selectedActivity.name,
-          exertionIntensity: selectedActivity.intensity,
+          activityName: targetActivity.name,
+          exertionIntensity: targetActivity.intensity,
           deterministicRiskLevel: activityEval.riskLevel,
           deterministicTiming: activityEval.recommendedTiming,
           deterministicDuration: activityEval.durationGuidance,
-          indoorAlternative: selectedActivity.indoorAlternativeTitle,
+          indoorAlternative: targetActivity.indoorAlternativeTitle,
         },
         forceRefresh,
       });
+    });
+
+    if (res) {
       setActivityAiMap((prev) => ({
         ...prev,
-        [selectedActivity.id]: { ...res, isAiGenerated: true },
+        [targetActivity.id]: { ...res, isAiGenerated: true },
       }));
-    } catch (err) {
-      setActivityAiError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to personalize outdoor activity decision right now.'
-      );
-    } finally {
-      setActivityAiLoading(false);
     }
   };
 
@@ -218,10 +215,10 @@ export function OutdoorActivityPanel({
             <button
               type="button"
               onClick={() => handleGenerateActivityAi(false)}
-              disabled={activityAiLoading || !snapshot}
+              disabled={activityAction.loading || !snapshot}
               className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50 whitespace-nowrap"
             >
-              {activityAiLoading ? (
+              {activityAction.loading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Sparkles className="w-3.5 h-3.5 text-teal-300" />
@@ -232,9 +229,9 @@ export function OutdoorActivityPanel({
             </button>
           </div>
 
-          {activityAiError && (
+          {activityAction.error && (
             <AiErrorBanner
-              error={activityAiError}
+              error={activityAction.error}
               retryLabel="Retry"
               onRetry={() => handleGenerateActivityAi(true)}
             />

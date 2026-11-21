@@ -33,10 +33,12 @@ import {
   GeminiServiceError,
   generateChatResponse,
   generateStructuredRecommendation,
+  isRecommendationTaskType,
   VALID_RECOMMENDATION_TASKS,
   type ChatContextInput,
 } from '../server/geminiService.ts';
-import { createApp } from '../server.ts';
+import { isPlainRecord, sanitizePayloadValue } from '../server/geminiUtils.ts';
+import { createApp, parseCoordinateQuery } from '../server.ts';
 
 async function startTestServer(): Promise<{ base: string; close: () => Promise<void> }> {
   const app = createApp();
@@ -699,5 +701,69 @@ describe('Express API Routes & Frontend apiClient Reliability', () => {
       )
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
+
+  it('validates coordinate queries, task types, payload sanitization, and Express 400 route boundaries', async () => {
+    // Coordinate boundary checks
+    expect(parseCoordinateQuery({ lat: '90', lon: '-180' })).toEqual({
+      latitude: 90,
+      longitude: -180,
+    });
+    expect(parseCoordinateQuery({ lat: '90.1', lon: '0' })).toBeNull();
+    expect(parseCoordinateQuery({ lat: '0', lon: '-180.1' })).toBeNull();
+    expect(parseCoordinateQuery({ lat: '', lon: '10' })).toBeNull();
+    expect(parseCoordinateQuery({ lat: 'abc', lon: '10' })).toBeNull();
+
+    // Runtime guards
+    expect(isRecommendationTaskType('commute-advice')).toBe(true);
+    expect(isRecommendationTaskType('unknown-task')).toBe(false);
+    expect(isPlainRecord({ ok: true })).toBe(true);
+    expect(isPlainRecord([])).toBe(false);
+    expect(isPlainRecord(null)).toBe(false);
+
+    // Sanitizer truncates arrays at 12, drops depth > 4, converts NaN -> null, and strips control chars
+    const dirty = {
+      text: 'Hello\u0000World',
+      num: Number.NaN,
+      flag: true,
+      list: Array.from({ length: 15 }, (_, i) => i),
+      l1: { l2: { l3: { l4: { l5: 'too-deep' } } } },
+    };
+    const sanitized = sanitizePayloadValue(dirty) as Record<string, unknown>;
+    expect(sanitized.text).toBe('HelloWorld');
+    expect(sanitized.num).toBeNull();
+    expect(sanitized.flag).toBe(true);
+    expect(sanitized.list).toHaveLength(12);
+    expect(
+      ((((sanitized.l1 as Record<string, unknown>).l2 as Record<string, unknown>)
+        .l3 as Record<string, unknown>).l4 as Record<string, unknown>).l5
+    ).toBeUndefined();
+
+    // Live Express HTTP 400 checks
+    const srv = await startTestServer();
+    try {
+      const shortSearch = await fetch(`${srv.base}/api/location/search?q=a`);
+      expect(shortSearch.status).toBe(400);
+      expect(((await shortSearch.json()) as { error: string }).error).toBe('INVALID_QUERY');
+
+      const badAq = await fetch(`${srv.base}/api/air-quality?lat=95&lon=10`);
+      expect(badAq.status).toBe(400);
+      expect(((await badAq.json()) as { error: string }).error).toBe('INVALID_COORDINATES');
+
+      const badGrid = await fetch(`${srv.base}/api/air-quality/grid?lat=foo&lon=10`);
+      expect(badGrid.status).toBe(400);
+      expect(((await badGrid.json()) as { error: string }).error).toBe('INVALID_COORDINATES');
+
+      const badTask = await fetch(`${srv.base}/api/ai/recommend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskType: 'not-real', context: {} }),
+      });
+      expect(badTask.status).toBe(400);
+      expect(((await badTask.json()) as { error: string }).error).toBe('INVALID_TASK_TYPE');
+    } finally {
+      await srv.close();
+    }
+  });
 });
+
 

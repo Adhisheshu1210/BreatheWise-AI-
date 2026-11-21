@@ -7,6 +7,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { AiErrorBanner, ChecklistToggleRow } from '../components/UiFeedback.tsx';
+import { useAsyncAction } from '../hooks/useAsyncAction.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 import {
   buildAiContextPayload,
@@ -23,6 +24,8 @@ import type {
   UserPreferences,
 } from '../types/airQuality.ts';
 import { getActiveAqiValue, getAqiCategory } from '../utils/aqi.ts';
+import { HOUSEHOLD_GROUP_IDS } from '../utils/options.ts';
+import { parseOptionValue } from '../utils/validation.ts';
 
 interface FamilyProtectionViewProps {
   snapshot: AirQualitySnapshot | null;
@@ -83,6 +86,11 @@ const HOUSEHOLD_GROUPS: Array<{
   },
 ];
 
+const DEFAULT_HOUSEHOLD_DISPLAY: HouseholdMemberProfile[] = [
+  { id: 'default-1', group: 'adults', nickname: 'Adults' },
+  { id: 'default-2', group: 'children', nickname: 'Children (Example)' },
+];
+
 export function FamilyProtectionView({
   snapshot,
   prefs,
@@ -98,8 +106,7 @@ export function FamilyProtectionView({
     {}
   );
   const [aiPlan, setAiPlan] = useState<FamilyAiResult | null>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const aiAction = useAsyncAction('Could not generate AI family plan.');
 
   const activeAqi = snapshot ? getActiveAqiValue(snapshot, prefs.aqiStandard) : null;
   const cat = getAqiCategory(activeAqi, prefs.aqiStandard);
@@ -131,22 +138,19 @@ export function FamilyProtectionView({
     setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const activeGroups =
+    prefs.household.length > 0 ? prefs.household : DEFAULT_HOUSEHOLD_DISPLAY;
+
   const handleGenerateFamilyAi = async (forceRefresh = false) => {
     if (!snapshot) return;
+    aiAction.clearError();
+
     if (prefs.demoMode || !geminiConfigured) {
-      const members =
-        prefs.household.length > 0
-          ? prefs.household
-          : [
-              { id: 'default-1', group: 'adults' as HouseholdGroupId, nickname: 'Adults' },
-              { id: 'default-2', group: 'children' as HouseholdGroupId, nickname: 'Children' },
-            ];
-      setAiError(null);
       setAiPlan(
         buildDemoFamilyPlan({
           snapshot,
           standard: prefs.aqiStandard,
-          groups: members.map(
+          groups: activeGroups.map(
             (m) => HOUSEHOLD_GROUPS.find((g) => g.id === m.group) ?? HOUSEHOLD_GROUPS[0]
           ),
         })
@@ -154,16 +158,14 @@ export function FamilyProtectionView({
       return;
     }
 
-    setLoadingAi(true);
-    setAiError(null);
-    try {
+    const res = await aiAction.run(async () => {
       const ctx = buildAiContextPayload({
         snapshot,
         prefs,
         indoorProfile: homeProfile,
         sustainabilityGoals,
       });
-      const res = await requestStructuredAiApi<FamilyAiResult>({
+      return requestStructuredAiApi<FamilyAiResult>({
         taskType: 'family-protection',
         context: ctx,
         payload: {
@@ -174,11 +176,10 @@ export function FamilyProtectionView({
         },
         forceRefresh,
       });
+    });
+
+    if (res) {
       setAiPlan(res);
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Could not generate AI family plan.');
-    } finally {
-      setLoadingAi(false);
     }
   };
 
@@ -196,14 +197,6 @@ export function FamilyProtectionView({
     'Prepare a low-particle sleeping space 45 minutes before bedtime.',
   ];
 
-  const activeGroups =
-    prefs.household.length > 0
-      ? prefs.household
-      : [
-          { id: 'default-1', group: 'adults' as HouseholdGroupId, nickname: 'Adults' },
-          { id: 'default-2', group: 'children' as HouseholdGroupId, nickname: 'Children (Example)' },
-        ];
-
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6">
@@ -217,10 +210,10 @@ export function FamilyProtectionView({
           <button
             type="button"
             onClick={() => handleGenerateFamilyAi(false)}
-            disabled={loadingAi || !snapshot}
+            disabled={aiAction.loading || !snapshot}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50 whitespace-nowrap"
           >
-            {loadingAi ? (
+            {aiAction.loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Sparkles className="w-4 h-4 text-teal-300" />
@@ -240,9 +233,9 @@ export function FamilyProtectionView({
           </p>
         </div>
 
-        {aiError && (
+        {aiAction.error && (
           <AiErrorBanner
-            error={aiError}
+            error={aiAction.error}
             onRetry={() => handleGenerateFamilyAi(true)}
             className="mt-3"
           />
@@ -263,7 +256,9 @@ export function FamilyProtectionView({
                 <select
                   id="family-group-select"
                   value={newGroup}
-                  onChange={(e) => setNewGroup(e.target.value as HouseholdGroupId)}
+                  onChange={(e) =>
+                    setNewGroup(parseOptionValue(e.target.value, HOUSEHOLD_GROUP_IDS, newGroup))
+                  }
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white"
                 >
                   {HOUSEHOLD_GROUPS.map((g) => (

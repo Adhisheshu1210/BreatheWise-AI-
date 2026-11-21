@@ -19,6 +19,14 @@ export const VALID_RECOMMENDATION_TASKS: readonly RecommendationTaskType[] = [
   'budget-home-upgrade',
 ] as const;
 
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+export function isRecommendationTaskType(value: unknown): value is RecommendationTaskType {
+  return typeof value === 'string' && VALID_RECOMMENDATION_TASKS.some((task) => task === value);
+}
+
 export class GeminiServiceError extends Error {
   code:
     | 'API_KEY_MISSING'
@@ -125,11 +133,11 @@ export function parseJsonObject(text: string | undefined, errMsg: string): Recor
     if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
     }
-    const parsed = JSON.parse(cleaned);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    const parsed: unknown = JSON.parse(cleaned);
+    if (!isPlainRecord(parsed)) {
       throw new Error('Expected JSON object');
     }
-    return parsed as Record<string, unknown>;
+    return parsed;
   } catch {
     throw new GeminiServiceError('AI_INVALID_RESPONSE', errMsg, 502);
   }
@@ -146,9 +154,9 @@ export function sanitizePayloadValue(value: unknown, depth = 0): unknown {
       .map((item) => sanitizePayloadValue(item, depth + 1))
       .filter((item) => item !== undefined);
   }
-  if (typeof value === 'object') {
+  if (isPlainRecord(value)) {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>).slice(0, 20)) {
+    for (const [k, v] of Object.entries(value).slice(0, 20)) {
       const safeKey = sanitizeShortString(k, 50);
       if (!safeKey) continue;
       const safeVal = sanitizePayloadValue(v, depth + 1);

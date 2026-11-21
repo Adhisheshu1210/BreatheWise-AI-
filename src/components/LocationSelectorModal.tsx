@@ -50,7 +50,8 @@ export function LocationSelectorModal({
 
   useEffect(() => {
     if (isOpen) {
-      previousFocusRef.current = document.activeElement as HTMLElement | null;
+      previousFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const t = setTimeout(() => searchInputRef.current?.focus(), 10);
       return () => clearTimeout(t);
     }
