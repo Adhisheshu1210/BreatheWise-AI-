@@ -663,4 +663,41 @@ describe('Express API Routes & Frontend apiClient Reliability', () => {
     });
     expect(valid.planSummary).toBe('Valid');
   });
+
+  it('rejects with TIMEOUT ApiClientError when request exceeds client timeoutMs and respects external AbortSignal', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          const rejectAbort = () => {
+            const abortErr = new Error('The operation was aborted.');
+            abortErr.name = 'AbortError';
+            reject(abortErr);
+          };
+          if (init?.signal?.aborted) {
+            rejectAbort();
+            return;
+          }
+          init?.signal?.addEventListener('abort', rejectAbort, { once: true });
+        })
+    );
+
+    await expect(
+      fetchAirQualityApi(
+        { name: 'SlowCity', country: 'Test', latitude: 10, longitude: 10 },
+        undefined,
+        30
+      )
+    ).rejects.toMatchObject({ code: 'TIMEOUT', status: 504 });
+
+    const externalController = new AbortController();
+    externalController.abort();
+    await expect(
+      fetchAirQualityApi(
+        { name: 'CancelledCity', country: 'Test', latitude: 10, longitude: 10 },
+        externalController.signal,
+        5000
+      )
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });
+

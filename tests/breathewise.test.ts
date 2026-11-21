@@ -462,3 +462,39 @@ describe('Form Input Validators', () => {
     expect(validatePollutionConcernInput('Burning leaves near park gate').valid).toBe(true);
   });
 });
+
+describe('Context Auditing, Sustainability Edges & JSON Export Utility', () => {
+  it('flags aging, stale, missing pollutants, weather gaps, and strips control chars in normalizeAndAuditContext', () => {
+    const audited = normalizeAndAuditContext({
+      locationName: '  Pune\u0007  ',
+      isDemo: false,
+      dataTimestampIso: '2026-11-20T05:00:00Z',
+      freshnessStatus: 'stale',
+      freshnessLabel: '6h old',
+      currentAqi: 132.4,
+      missingPollutants: ['O₃', 'SO₂'],
+      weatherSummary: 'Temp n/a, Wind unavailable',
+    });
+
+    expect(audited.location).toBe('Pune');
+    expect(audited.currentAqi).toBe(132);
+    expect(audited.dataGaps.some((g) => g.includes('6h old'))).toBe(true);
+    expect(audited.dataGaps.some((g) => g.includes('O₃, SO₂'))).toBe(true);
+    expect(audited.dataGaps.some((g) => g.includes('weather parameters'))).toBe(true);
+  });
+
+  it('computes sustainability score accurately for empty arrays and over-target completions', () => {
+    expect(calculateSustainabilityScore([])).toEqual({
+      score: 0,
+      completedTotal: 0,
+      targetTotal: 0,
+    });
+    const extraActions = calculateSustainabilityScore([
+      { completedCount: 8, targetCount: 4, pointsPerAction: 10 },
+    ]);
+    expect(extraActions.score).toBe(80);
+    expect(extraActions.completedTotal).toBe(8);
+    expect(extraActions.targetTotal).toBe(4);
+  });
+});
+

@@ -6,6 +6,7 @@ import type {
   ExposureLogEntry,
 } from '../types/airQuality.ts';
 import { getActiveAqiValue } from '../utils/aqi.ts';
+import { downloadJsonFile } from '../utils/exportJson.ts';
 import { validateExposureLogInput } from '../utils/validation.ts';
 
 interface ExposureTrackerViewProps {
@@ -105,14 +106,10 @@ export function ExposureTrackerView({
   }, [logs]);
 
   const handleExportJson = () => {
-    if (typeof URL.createObjectURL !== 'function') return;
-    const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `breathewise-exposure-logs-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJsonFile(
+      `breathewise-exposure-logs-${new Date().toISOString().slice(0, 10)}.json`,
+      logs
+    );
   };
 
   return (
